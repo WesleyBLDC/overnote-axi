@@ -1,0 +1,55 @@
+{
+  "name": "overnote-axi",
+  "version": "0.1.0",
+  "description": "Agent ergonomic CLI for Overnote: read, search, create, update, organize, and link notes with compact TOON output, no plugin and no server.",
+  "keywords": [
+    "axi",
+    "agent",
+    "cli",
+    "overnote",
+    "raycast",
+    "notes",
+    "markdown",
+    "toon"
+  ],
+  "license": "MIT",
+  "author": "Wesley Dela Cruz",
+  "type": "module",
+  "bin": {
+    "overnote-axi": "./dist/overnote-axi.js"
+  },
+  "files": [
+    "dist",
+    "skills/overnote-axi",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "os": [
+    "darwin"
+  ],
+  "scripts": {
+    "link-overnote": "node scripts/link-overnote.mjs",
+    "prebuild": "node scripts/link-overnote.mjs",
+    "build": "node scripts/build.mjs",
+    "build:skill": "node scripts/build-skill.mjs",
+    "pretest": "node scripts/link-overnote.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "pretypecheck": "node scripts/link-overnote.mjs",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test && npm run build && node scripts/build-skill.mjs --check"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": false
+  }
+}

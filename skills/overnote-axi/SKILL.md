@@ -1,0 +1,9 @@
+---
+name: overnote-axi
+description: "Read, search, create, update, organize, and link Overnote notes (the Raycast floating notepad) from the command line. Use when a task mentions Overnote, Raycast notes, a scratchpad or quick note, or reading, appending to, checking off, pinning, linking, or deleting a note."
+---
+
+# overnote-axi
+
+Placeholder: scripts/build-skill.mjs generates this file from the CLI's own help once the integrations slice lands.
+Until then, run `overnote-axi --help`.

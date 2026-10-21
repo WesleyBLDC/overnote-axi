@@ -1,0 +1,133 @@
+/**
+ * Everything a command may touch, behind lazy getters so each command pays only for what it uses
+ * (opening SQLite, connecting to the helper, loading the core chunk). Tests build a Context with
+ * fakes through `createContext({ ...overrides })`.
+ */
+import os from "node:os";
+
+import type { MarkdownConverter, NotesReader, NotesWriter, OvernotePaths } from "./domain/types.js";
+import { axiError } from "./errors.js";
+import { NAME } from "./meta.js";
+
+export type Env = Readonly<Record<string, string | undefined>>;
+
+export interface Output {
+  write(chunk: string): unknown;
+}
+
+export interface Context {
+  readonly env: Env;
+  readonly home: string;
+  readonly uid: number;
+  readonly cwd: string;
+  /** Absolute path of the running executable (for the home view and hook commands). */
+  readonly binPath: string;
+  now(): number;
+  paths(): OvernotePaths;
+  /** Opens the database read-only on first use; DATABASE_NOT_FOUND when it does not exist. */
+  reader(): NotesReader;
+  /** Like reader(), but null instead of DATABASE_NOT_FOUND (for the home view and hooks). */
+  tryReader(): NotesReader | null;
+  /** Connects to the running helper on first use; HELPER_NOT_RUNNING when it is not answering. */
+  writer(): Promise<NotesWriter>;
+  /** Loads the @overnote/core chunk on first use. */
+  converter(): Promise<MarkdownConverter>;
+  /** All of stdin when it is piped, null when stdin is a terminal. */
+  readStdin(): Promise<string | null>;
+  /** Opens a URL with macOS `open` (no shell). */
+  openUrl(url: string): Promise<void>;
+  /** Closes the database and the socket. The CLI calls it after every command. */
+  close(): void;
+}
+
+export interface ContextOverrides {
+  env?: Env;
+  home?: string;
+  uid?: number;
+  cwd?: string;
+  binPath?: string;
+  now?: () => number;
+  paths?: () => OvernotePaths;
+  openReader?: (file: string) => NotesReader | null;
+  connectWriter?: (paths: OvernotePaths, uid: number) => Promise<NotesWriter>;
+  loadConverter?: () => Promise<MarkdownConverter>;
+  readStdin?: () => Promise<string | null>;
+  openUrl?: (url: string) => Promise<void>;
+}
+
+export function createContext(overrides: ContextOverrides = {}): Context {
+  const env = overrides.env ?? process.env;
+  const home = overrides.home ?? env.HOME ?? os.homedir();
+  const uid = overrides.uid ?? os.userInfo().uid;
+
+  let paths: OvernotePaths | undefined;
+  let reader: NotesReader | null | undefined;
+  let writer: Promise<NotesWriter> | undefined;
+  let converter: Promise<MarkdownConverter> | undefined;
+
+  const resolvePaths =
+    overrides.paths ??
+    (() => {
+      // Resolved synchronously on first use; the module is tiny and has no dependencies.
+      throw axiError("paths are resolved by src/config/paths.ts", "NOT_IMPLEMENTED");
+    });
+
+  const context: Context = {
+    env,
+    home,
+    uid,
+    cwd: overrides.cwd ?? process.cwd(),
+    binPath: overrides.binPath ?? process.argv[1] ?? NAME,
+    now: overrides.now ?? (() => Date.now()),
+    paths() {
+      paths ??= resolvePaths();
+      return paths;
+    },
+    tryReader() {
+      if (reader === undefined) {
+        const open = overrides.openReader;
+        if (!open) throw axiError("no reader factory configured", "NOT_IMPLEMENTED");
+        reader = open(context.paths().database);
+      }
+      return reader;
+    },
+    reader() {
+      const found = context.tryReader();
+      if (found) return found;
+      throw axiError("No Overnote database found", "DATABASE_NOT_FOUND", [
+        "Open Overnote once so it creates its database: overnote-axi open",
+        "Or point OVERNOTE_SUPPORT_DIR at the folder that holds notes.sqlite",
+      ]);
+    },
+    writer() {
+      if (!writer) {
+        const connect = overrides.connectWriter;
+        if (!connect) return Promise.reject(axiError("no writer factory configured", "NOT_IMPLEMENTED"));
+        writer = connect(context.paths(), uid);
+        // A failed connection is not cached, so a later call can retry.
+        writer.catch(() => {
+          writer = undefined;
+        });
+      }
+      return writer;
+    },
+    converter() {
+      if (!converter) {
+        const load = overrides.loadConverter;
+        if (!load) return Promise.reject(axiError("no converter configured", "NOT_IMPLEMENTED"));
+        converter = load();
+      }
+      return converter;
+    },
+    readStdin: overrides.readStdin ?? (() => Promise.resolve(null)),
+    openUrl: overrides.openUrl ?? (() => Promise.reject(axiError("no URL opener configured", "NOT_IMPLEMENTED"))),
+    close() {
+      reader?.close();
+      reader = undefined;
+      const pending = writer;
+      writer = undefined;
+      void pending?.then((client) => client.close()).catch(() => undefined);
+    },
+  };
+  return context;
+}
