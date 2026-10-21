@@ -49,6 +49,9 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
 
     const groceries = await helper.call("notes.create", content("Groceries\nmilk and café beans"));
     await helper.call("notes.pin", { id: groceries.id });
+    // A later millisecond, so Standup is the newest note even when the pin and the create share one
+    // (the newest note fallback breaks an updatedAt tie by the smaller id, which is Groceries).
+    await new Promise((resolve) => setTimeout(resolve, 5));
     const standup = await helper.call("notes.create", content(`Standup\n${markdownNoteLink("Groceries", groceries.id)}`));
 
     const home = await run("home");
