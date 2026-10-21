@@ -6,7 +6,7 @@ import type { FlagSpec, PositionalSpec } from "../command.js";
 
 export const NOTE_ARG: PositionalSpec = {
   name: "<note>",
-  description: "Full id, unique id prefix or suffix (6+ chars), current, or title:<exact title>",
+  description: "Full id, unique id suffix (6+ chars), current, or title:<exact title>",
   required: true,
 };
 
@@ -60,9 +60,13 @@ export const OFFSET_FLAG: FlagSpec = {
   description: "Skip this many rows first (for paging)",
 };
 
-/** Columns `list` and `trash` can show. Default: id,title,updated. */
-export const LIST_FIELDS = ["id", "title", "updated", "created", "accessed", "deleted", "chars", "pinned", "preview"] as const;
+/** Columns `list` can show. Default: id,title,updated. */
+export const LIST_FIELDS = ["id", "title", "updated", "created", "accessed", "chars", "pinned", "preview"] as const;
 export const DEFAULT_LIST_FIELDS = ["id", "title", "updated"] as const;
+
+/** Columns `trash` can show: the list columns plus `deleted`. Default: id,title,deleted. */
+export const TRASH_FIELDS = [...LIST_FIELDS, "deleted"] as const;
+export const DEFAULT_TRASH_FIELDS = ["id", "title", "deleted"] as const;
 
 /** Columns `search` can show. Default: id,title,match. */
 export const SEARCH_FIELDS = ["id", "title", "match", "updated", "chars", "pinned"] as const;

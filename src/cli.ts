@@ -2,13 +2,18 @@
  * Dispatcher: argv to one command, output to stdout, an exit code back to bin/overnote-axi.ts.
  *
  * - No arguments runs `home` (AXI principle 8: content first).
- * - `--help` alone prints the top-level help; `<command> ... --help` prints that command's help.
+ * - `--help` or `help` alone prints the top-level help; `<command> ... --help`, `help <command>`,
+ *   and `<command> help` (for a command whose first argument cannot be `help`) print that
+ *   command's help.
+ * - An unknown command within edit distance 2 of a real one suggests it (did you mean).
  * - Flags must follow the command; a leading flag is a usage error with a corrected example.
  * - Every error is rendered to stdout as TOON (principle 6) and nothing leaks to stderr.
  */
-import { parseArgs, renderCommandHelp, wantsHelp } from "./args.js";
+import { closest, correctedInvocation, parseArgs, renderCommandHelp, wantsHelp } from "./args.js";
+import type { CommandSpec } from "./command.js";
 import type { Context, Output } from "./context.js";
 import { AxiError, axiError, EXIT_OK, exitCodeFor, unknownFailureHelp, validation } from "./errors.js";
+import { NOTE_REF_HELP } from "./guidance.js";
 import { DESCRIPTION, NAME } from "./meta.js";
 import { renderError } from "./output/render.js";
 import { COMMANDS, findCommand } from "./registry.js";
@@ -19,9 +24,6 @@ export interface MainOptions {
   /** Injected by tests; production builds the runtime context lazily. */
   context?: Context;
 }
-
-export const NOTE_REF_HELP =
-  "<note> is a full id, a unique id prefix or suffix (6+ chars), current, or title:<exact title>";
 
 export function topLevelHelp(): string {
   const width = Math.max(...COMMANDS.map((entry) => entry.name.length));
@@ -36,11 +38,47 @@ export function topLevelHelp(): string {
     "  Flags go after the command, and every command takes --help",
     "  Exit codes: 0 success (including no-ops), 1 error, 2 usage error",
     "examples[4]:",
-    `  ${NAME}`,
-    `  ${NAME} search "standup"`,
     `  ${NAME} read current`,
-    `  ${NAME} update current --content "- [ ] follow up"`,
+    `  ${NAME} search "standup"`,
+    `  ${NAME} update <id> --content "- [ ] follow up"`,
+    `  ${NAME}`,
   ].join("\n");
+}
+
+/**
+ * The corrected invocation for argv that starts with a flag: `--help <command>` becomes
+ * `<command> --help`, a leading `--` is dropped, and any other flag is moved behind `home`.
+ */
+export function leadingFlagFix(argv: readonly string[]): string {
+  const [first, ...rest] = argv;
+  if (first === "--help" && rest[0] !== undefined && findCommand(rest[0])) {
+    return [NAME, rest[0], "--help"].join(" ");
+  }
+  if (first === "--") return [NAME, ...rest].join(" ");
+  return [NAME, "home", ...argv].join(" ");
+}
+
+/** The word `help` stands for `--help`: alone, before a command, or as a command's only argument. */
+const HELP_WORD = "help";
+
+/**
+ * True when `<command> help` means help rather than an argument: the command takes no argument,
+ * or its first argument is a fixed choice that `help` is not (a note ref or a query could be `help`).
+ */
+function helpWordIsHelp(spec: CommandSpec, rest: readonly string[]): boolean {
+  if (rest.length !== 1 || rest[0] !== HELP_WORD) return false;
+  const first = spec.positionals[0];
+  return first === undefined || (first.choices !== undefined && !first.choices.includes(HELP_WORD));
+}
+
+/** The unknown command error, with the closest command (when one is near) as the first fix. */
+function unknownCommand(name: string, rest: readonly string[]) {
+  const close = closest(name, COMMANDS.map((command) => command.name));
+  return validation(`unknown command ${name}${close ? ` (did you mean ${close}?)` : ""}`, [
+    ...(close ? [correctedInvocation(close, rest, 0, 0, [])] : []),
+    `valid commands: ${COMMANDS.map((command) => command.name).join(", ")}`,
+    `${NAME} --help`,
+  ]);
 }
 
 export interface ErrorSource {
@@ -70,31 +108,27 @@ export async function main(options: MainOptions = {}): Promise<number> {
   };
 
   try {
-    if (argv.length === 1 && argv[0] === "--help") {
+    if (argv.length === 1 && (argv[0] === "--help" || argv[0] === HELP_WORD)) {
       write(topLevelHelp());
       return EXIT_OK;
+    }
+    if (argv.length === 2 && argv[0] === HELP_WORD) {
+      // `help read` is `read --help`; `help bogus` fails like `bogus` would.
+      argv.splice(0, 2, argv[1]!, "--help");
     }
 
     const first = argv[0];
     if (first !== undefined && first.startsWith("-")) {
-      throw validation(`flags go after the command (got ${first} first)`, [
-        `${NAME} home ${argv.join(" ")}`,
-        `${NAME} --help`,
-      ]);
+      throw validation(`flags go after the command (got ${first} first)`, [leadingFlagFix(argv), `${NAME} --help`]);
     }
 
     const name = first ?? "home";
     const entry = findCommand(name);
-    if (!entry) {
-      throw validation(`unknown command ${name}`, [
-        `Valid commands: ${COMMANDS.map((command) => command.name).join(" ")}`,
-        `${NAME} --help`,
-      ]);
-    }
-
     const rest = argv.slice(1);
+    if (!entry) throw unknownCommand(name, rest);
+
     const { command } = await entry.load();
-    if (wantsHelp(rest)) {
+    if (wantsHelp(rest) || helpWordIsHelp(command, rest)) {
       write(renderCommandHelp(command, entry.summary));
       return EXIT_OK;
     }
@@ -109,7 +143,7 @@ export async function main(options: MainOptions = {}): Promise<number> {
     return result.exitCode ?? EXIT_OK;
   } catch (error) {
     const failure =
-      error instanceof AxiError ? error : axiError("Unexpected failure", "UNKNOWN", unknownFailureHelp(argv));
+      error instanceof AxiError ? error : axiError("unexpected failure", "UNKNOWN", unknownFailureHelp(argv));
     write(renderError(failure.message, failure.code, failure.suggestions, failure.details));
     if (!(error instanceof AxiError) && process.env.OVERNOTE_AXI_DEBUG) {
       // Diagnostics only on request, and on stderr where agents do not read.

@@ -2,7 +2,6 @@
  * The command registry: the single list of commands, their one-line summaries, and a lazy loader
  * for each module. Only the selected command's module (and what it imports) is ever loaded.
  *
- * Every entry exists from the scaffold on, so build slices only fill in their command modules.
  * test/unit/registry.test.ts checks that each module exports a spec with the same name.
  */
 import type { CommandSpec } from "./command.js";
@@ -64,7 +63,7 @@ export const COMMANDS: readonly CommandEntry[] = [
   {
     name: "update",
     group: "write",
-    summary: "Append (default), prepend, or replace a note's markdown",
+    summary: "Append (default), prepend below the title, add on top, or replace a note's markdown",
     load: () => import("./commands/update.js"),
   },
   {
@@ -76,7 +75,7 @@ export const COMMANDS: readonly CommandEntry[] = [
   {
     name: "link",
     group: "write",
-    summary: "Print a note's deeplink, or insert it into another note",
+    summary: "Print a note's markdown link, or insert it into another note",
     load: () => import("./commands/link.js"),
   },
   // Organize: pins, copies, trash. Also through the helper.
