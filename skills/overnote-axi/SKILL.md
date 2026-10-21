@@ -65,13 +65,13 @@ overnote-axi search "standup"
 overnote-axi read current
 overnote-axi read K9QW7Z --full
 # Create a note: the title becomes its first line
-overnote-axi create --title "Trip ideas" --content "As of 2026-10-20"
+overnote-axi create --title "Trip ideas" --content "As of Oct 20."
 # Append a line (append is the default mode and keeps every existing block)
 overnote-axi update K9QW7Z --content "- [ ] call Sam"
-# Append a dated section written to a file first, such as ## 2026-10-20 Follow ups
+# Append a dated section written to a file first, such as ## Oct 20: Follow ups
 overnote-axi update K9QW7Z --content-file /tmp/section.md
 # Refresh the As of line under the title
-overnote-axi edit K9QW7Z --old "As of 2026-10-20" --new "As of 2026-10-21"
+overnote-axi edit K9QW7Z --old "As of Oct 20." --new "As of Oct 21."
 # Check off a task, guarded by the updatedAt that read printed
 overnote-axi edit K9QW7Z --old "- [ ] call Sam" --new "- [x] call Sam" --expected-updated-at 1792543271491
 # Link one note into another
@@ -90,18 +90,27 @@ Content goes in `--content <markdown>`, `--content -` (stdin), or `--content-fil
 - Headings `#`, `##` and `###`; deeper headings are stored as level 3.
 - Paragraphs; a single newline inside a paragraph is a line break.
 - Inline `**bold**`, `*italic*`, `~~strike~~`, `++underline++`, `` `code` `` and `[label](https://example.com)` links; bare `https://` URLs become links.
-- Bullet lists `- item`, numbered lists `1. item`, and task lists `- [ ] open` and `- [x] done`, nested by indenting two spaces.
+- Bullet lists `- item`, numbered lists `1. item`, and task lists `- [ ] open` and `- [x] done`; nest an item by indenting it to its parent's text (2 spaces under `-`, 3 under `1.`).
 - Block quotes `> text`, fenced code blocks with a language, and a horizontal rule `---` on its own line.
-- Tables are not supported: they are stored as literal `|` text, so write bullets instead.
-- Images keep only their alt text, and HTML other than inline tags such as `<b>` or `<br>` is dropped (its text stays).
+- Not rendered: tables stay literal `|` text, images keep only their alt text, and HTML other than inline tags such as `<b>` or `<br>` is dropped (its text stays).
 - Toggle lists exist only in the editor and read back as bullets; an edit touching a collapsed one fails with `LOSSY_REWRITE`.
 
-## Note layout
+## Writing clean notes
 
-- The first line is the title: Overnote names the note after it, so start a new note with `--title` (or a `# Title` line).
-- Put an `As of <date>` line right under the title (for example `As of 2026-10-20`), and refresh it with `edit` when you update the note.
-- Add new material at the end as a dated section, for example `## 2026-10-20 Follow ups`, instead of rewriting earlier sections.
-- Text meant for Slack or another chat app uses bullets and **bold** labels, never tables, because chat apps and Overnote do not render them.
+In a note the person wrote, follow its existing layout; these rules are for notes you create and maintain.
+They match [Overnote's guide](https://github.com/WesleyBLDC/overnote#writing-clean-notes).
+
+- The first line is the title: start a new note with `create --title "<short, specific title>"`, which stores `# Title`.
+- For a living note, put `As of <Mon DD>.` on the second line and refresh it with `edit` (`update --prepend` also lands below the title).
+- Group with `##` sections and at most one `###` level below them; never skip levels.
+- One blank line between blocks (extra ones are stored as empty lines); no trailing spaces.
+- One short idea per bullet; put detail in a nested bullet.
+- Numbered lists only for steps or order, bullets otherwise, `- [ ]` tasks for things to do.
+- Bold only the few words a reader must see, never whole lines or headings.
+- `inline code` for commands, paths, ids, and keys; a fenced block with a language for anything multi line.
+- Links as `[short label](url)`; reference another note with `overnote-axi link` (its deeplink) instead of copying its text.
+- No tables or images: use a short list of `label: value` bullets.
+- Add updates as a dated section at the end (`## Oct 21: <what changed>`) or fix a line with `edit`; never rewrite a note to add one fact.
 
 ## Safety rules
 

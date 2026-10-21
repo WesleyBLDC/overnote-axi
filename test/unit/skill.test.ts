@@ -96,18 +96,22 @@ describe("buildSkill", () => {
     ["where to start", "## Start here"],
     ["runnable examples", "## Examples"],
     ["the supported markdown subset", "## Supported markdown"],
-    ["the note layout conventions", "## Note layout"],
+    ["the formatting rules", "## Writing clean notes"],
     ["the safety rules", "## Safety rules"],
     ["the common errors", "## Common errors"],
   ])("teaches %s", (_label, heading) => {
     expect(skill).toContain(`\n${heading}\n`);
   });
 
-  it("states the layout conventions that replace the old agent rules", () => {
+  it("states the formatting rules, scoped to notes the agent maintains", () => {
+    expect(skill).toMatch(/In a note the person wrote, follow its existing layout/);
     expect(skill).toMatch(/first line is the title/);
-    expect(skill).toMatch(/`As of <date>` line/);
+    expect(skill).toMatch(/`As of <Mon DD>\.` on the second line/);
+    expect(skill).toMatch(/`update --prepend` also lands below the title/);
     expect(skill).toMatch(/dated section/);
-    expect(skill).toMatch(/bullets and \*\*bold\*\* labels, never tables/);
+    expect(skill).toMatch(/No tables or images/);
+    expect(skill).toContain("https://github.com/WesleyBLDC/overnote#writing-clean-notes");
+    expect(skill).not.toMatch(/Slack|chat app/);
     expect(skill).not.toMatch(/dashes as punctuation/);
   });
 

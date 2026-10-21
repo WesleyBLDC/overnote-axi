@@ -3,8 +3,8 @@
  * the skill is the home view with live state stripped). Leaf module: data only, no imports.
  *
  * `HOME_HINTS` are the `help[N]:` lines the home view prints when notes exist; `NOTE_REF_HELP` is
- * the note reference rule the top-level help and the skill print; `WORKFLOW` and `SAFETY` are the
- * lists the skill body renders. Change them here and every output follows;
+ * the note reference rule the top-level help and the skill print; `WORKFLOW`, `SAFETY`, and
+ * `FORMATTING` are the lists the skill body renders. Change them here and every output follows;
  * scripts/build-skill.mjs --check fails until SKILL.md is regenerated.
  */
 
@@ -43,4 +43,26 @@ export const SAFETY: readonly string[] = [
   "Pass `--permanent` (`delete --permanent <full id>`, `trash --empty --permanent --expected-count <n>`) only when the user explicitly asked in this conversation to erase notes for good; never infer it from \"delete\" or \"clean up\", and no hint ever offers it",
   "A write to the note open in Overnote prints a warning: Overnote merges it with unsaved typing, and an older Overnote that saves over it is reported as `OVERWRITTEN_BY_EDITOR`",
   "Never read or write Overnote's database or files directly, and never drive the Raycast window; this CLI is the only interface",
+];
+
+/** Overnote README's section with the same rules, written for people. */
+export const FORMATTING_DOCS = "https://github.com/WesleyBLDC/overnote#writing-clean-notes";
+
+/**
+ * Formatting rules for a clean note; the same rules as Overnote's README section
+ * (`FORMATTING_DOCS`), in agent facing wording. They apply to notes the agent creates and
+ * maintains: in a note the person wrote, the skill says to follow its existing layout instead.
+ */
+export const FORMATTING: readonly string[] = [
+  'The first line is the title: start a new note with `create --title "<short, specific title>"`, which stores `# Title`',
+  "For a living note, put `As of <Mon DD>.` on the second line and refresh it with `edit` (`update --prepend` also lands below the title)",
+  "Group with `##` sections and at most one `###` level below them; never skip levels",
+  "One blank line between blocks (extra ones are stored as empty lines); no trailing spaces",
+  "One short idea per bullet; put detail in a nested bullet",
+  "Numbered lists only for steps or order, bullets otherwise, `- [ ]` tasks for things to do",
+  "Bold only the few words a reader must see, never whole lines or headings",
+  "`inline code` for commands, paths, ids, and keys; a fenced block with a language for anything multi line",
+  "Links as `[short label](url)`; reference another note with `overnote-axi link` (its deeplink) instead of copying its text",
+  "No tables or images: use a short list of `label: value` bullets",
+  "Add updates as a dated section at the end (`## Oct 21: <what changed>`) or fix a line with `edit`; never rewrite a note to add one fact",
 ];

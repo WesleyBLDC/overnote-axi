@@ -21,7 +21,7 @@
 import path from "node:path";
 
 import { axiError, type ErrorCode } from "../errors.js";
-import { HOME_HINTS, NOTE_REF_HELP, SAFETY, WORKFLOW } from "../guidance.js";
+import { FORMATTING, FORMATTING_DOCS, HOME_HINTS, NOTE_REF_HELP, SAFETY, WORKFLOW } from "../guidance.js";
 import { NAME } from "../meta.js";
 import { COMMANDS } from "../registry.js";
 import { readIfExists, removeDirIfEmpty, removeFile, writeAtomic } from "./files.js";
@@ -77,10 +77,10 @@ const EXAMPLES: readonly (readonly [comment: string, line: string])[] = [
   ["Find notes by title or text (title matches first)", 'overnote-axi search "standup"'],
   ["Read the note open in Overnote (else the newest note), then the whole of a long one by id suffix", "overnote-axi read current"],
   ["", "overnote-axi read K9QW7Z --full"],
-  ["Create a note: the title becomes its first line", 'overnote-axi create --title "Trip ideas" --content "As of 2026-10-20"'],
+  ["Create a note: the title becomes its first line", 'overnote-axi create --title "Trip ideas" --content "As of Oct 20."'],
   ["Append a line (append is the default mode and keeps every existing block)", 'overnote-axi update K9QW7Z --content "- [ ] call Sam"'],
-  ["Append a dated section written to a file first, such as ## 2026-10-20 Follow ups", "overnote-axi update K9QW7Z --content-file /tmp/section.md"],
-  ["Refresh the As of line under the title", 'overnote-axi edit K9QW7Z --old "As of 2026-10-20" --new "As of 2026-10-21"'],
+  ["Append a dated section written to a file first, such as ## Oct 20: Follow ups", "overnote-axi update K9QW7Z --content-file /tmp/section.md"],
+  ["Refresh the As of line under the title", 'overnote-axi edit K9QW7Z --old "As of Oct 20." --new "As of Oct 21."'],
   ["Check off a task, guarded by the updatedAt that read printed", 'overnote-axi edit K9QW7Z --old "- [ ] call Sam" --new "- [x] call Sam" --expected-updated-at 1792543271491'],
   ["Link one note into another", "overnote-axi link M1CX4P --into K9QW7Z"],
   ["Organize", "overnote-axi pin K9QW7Z"],
@@ -92,19 +92,10 @@ const MARKDOWN_SUBSET: readonly string[] = [
   "Headings `#`, `##` and `###`; deeper headings are stored as level 3.",
   "Paragraphs; a single newline inside a paragraph is a line break.",
   "Inline `**bold**`, `*italic*`, `~~strike~~`, `++underline++`, `` `code` `` and `[label](https://example.com)` links; bare `https://` URLs become links.",
-  "Bullet lists `- item`, numbered lists `1. item`, and task lists `- [ ] open` and `- [x] done`, nested by indenting two spaces.",
+  "Bullet lists `- item`, numbered lists `1. item`, and task lists `- [ ] open` and `- [x] done`; nest an item by indenting it to its parent's text (2 spaces under `-`, 3 under `1.`).",
   "Block quotes `> text`, fenced code blocks with a language, and a horizontal rule `---` on its own line.",
-  "Tables are not supported: they are stored as literal `|` text, so write bullets instead.",
-  "Images keep only their alt text, and HTML other than inline tags such as `<b>` or `<br>` is dropped (its text stays).",
+  "Not rendered: tables stay literal `|` text, images keep only their alt text, and HTML other than inline tags such as `<b>` or `<br>` is dropped (its text stays).",
   "Toggle lists exist only in the editor and read back as bullets; an edit touching a collapsed one fails with `LOSSY_REWRITE`.",
-];
-
-/** A short, generic layout that keeps notes easy to scan and to extend without rewrites. */
-const LAYOUT: readonly string[] = [
-  "The first line is the title: Overnote names the note after it, so start a new note with `--title` (or a `# Title` line).",
-  "Put an `As of <date>` line right under the title (for example `As of 2026-10-20`), and refresh it with `edit` when you update the note.",
-  "Add new material at the end as a dated section, for example `## 2026-10-20 Follow ups`, instead of rewriting earlier sections.",
-  "Text meant for Slack or another chat app uses bullets and **bold** labels, never tables, because chat apps and Overnote do not render them.",
 ];
 
 /** Typed against ErrorCode, so renaming a code fails typecheck instead of leaving a stale name here. */
@@ -191,9 +182,12 @@ export function buildSkill(input: SkillInput): string {
     "",
     ...bullets(MARKDOWN_SUBSET),
     "",
-    "## Note layout",
+    "## Writing clean notes",
     "",
-    ...bullets(LAYOUT),
+    "In a note the person wrote, follow its existing layout; these rules are for notes you create and maintain.",
+    `They match [Overnote's guide](${FORMATTING_DOCS}).`,
+    "",
+    ...bullets(FORMATTING.map(sentence)),
     "",
     "## Safety rules",
     "",
