@@ -112,6 +112,13 @@ The build records the Overnote commit it bundled (shown by `overnote-axi status`
 `npm pack` refuses a checkout with uncommitted core changes unless `OVERNOTE_ALLOW_DIRTY=1`.
 See [AGENTS.md](AGENTS.md) for contributor rules and [docs/DESIGN.md](docs/DESIGN.md) for the design.
 
+## Acknowledgments
+
+- [AXI](https://github.com/kunchenguid/axi) by [@kunchenguid](https://github.com/kunchenguid) ([axi.md](https://axi.md)) defines the 10 agent experience principles this CLI follows, from TOON output and minimal schemas to session hooks first and an installable skill second.
+  Its reference implementations, [gh-axi](https://github.com/kunchenguid/gh-axi) and [chrome-devtools-axi](https://github.com/kunchenguid/chrome-devtools-axi), shaped the command surface and the setup flow.
+- [TOON](https://toonformat.dev) is the output format.
+- [Overnote](https://github.com/WesleyBLDC/overnote) is the notes app this tool drives; the build bundles its `@overnote/core` package so notes are written exactly the way its editor writes them.
+
 ## License
 
 MIT
