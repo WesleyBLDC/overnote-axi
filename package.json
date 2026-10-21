@@ -13,7 +13,15 @@
     "toon"
   ],
   "license": "MIT",
-  "author": "Wesley Dela Cruz",
+  "author": "WesleyBLDC <WesleyBLDC@users.noreply.github.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WesleyBLDC/overnote-axi.git"
+  },
+  "homepage": "https://github.com/WesleyBLDC/overnote-axi#readme",
+  "bugs": {
+    "url": "https://github.com/WesleyBLDC/overnote-axi/issues"
+  },
   "type": "module",
   "bin": {
     "overnote-axi": "./dist/overnote-axi.js"
