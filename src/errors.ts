@@ -42,8 +42,6 @@ export type ErrorCode =
   | "DATABASE_ERROR"
   /** Filesystem failure outside the notes database (content files, hook config). */
   | "IO_ERROR"
-  /** Placeholder for command modules that are not implemented yet. */
-  | "NOT_IMPLEMENTED"
   | "UNKNOWN";
 
 /** A scalar detail field. */
@@ -93,8 +91,4 @@ export function validation(message: string, suggestions: readonly string[] = [])
 export function unknownFailureHelp(argv: readonly string[]): string[] {
   const args = argv.join(" ");
   return ["overnote-axi status", `OVERNOTE_AXI_DEBUG=1 overnote-axi${args ? ` ${args}` : ""}`];
-}
-
-export function notImplemented(what: string): AxiError {
-  return new AxiError(`${what} is not implemented yet`, "NOT_IMPLEMENTED");
 }
