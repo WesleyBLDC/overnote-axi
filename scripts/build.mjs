@@ -11,6 +11,10 @@
 //   refuses a dirty checkout unless OVERNOTE_ALLOW_DIRTY=1;
 // - dist/THIRD_PARTY_LICENSES.txt with the license text of every bundled package, found from
 //   esbuild's metafile; the build fails when a bundled package has no license text.
+//
+// `--outdir <dir>` builds somewhere other than dist/ (the built binary tests in test/e2e build a
+// private copy, so they never race a concurrent `npm run build`). The dir must be named `dist`,
+// because `setup` only installs hooks that point at a `dist/overnote-axi.js`.
 import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -20,7 +24,15 @@ import { build } from "esbuild";
 import { overnoteDir, repoRoot } from "./overnote-dir.mjs";
 
 const overnote = overnoteDir();
-const outdir = path.join(repoRoot, "dist");
+const outdir = outdirArg(process.argv.slice(2));
+
+function outdirArg(argv) {
+  const at = argv.indexOf("--outdir");
+  if (at === -1) return path.join(repoRoot, "dist");
+  const dir = argv[at + 1];
+  if (!dir || path.basename(dir) !== "dist") throw new Error("--outdir needs a directory named dist");
+  return path.resolve(dir);
+}
 
 function coreRevision() {
   const git = (...args) => execFileSync("git", ["-C", overnote, ...args], { encoding: "utf8" }).trim();
