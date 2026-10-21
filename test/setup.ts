@@ -1,7 +1,7 @@
 /**
  * Runs before every test file. Points every location the CLI could touch at a fresh temp folder,
  * so a test that forgets its own paths fails with DATABASE_NOT_FOUND or HELPER_NOT_RUNNING
- * instead of ever reaching Wesley's real notes or agent configuration:
+ * instead of ever reaching the user's real notes or agent configuration:
  *
  * - OVERNOTE_SUPPORT_DIR, OVERNOTE_RUNTIME_DIR, OVERNOTE_BACKUP_DIR: nonexistent temp paths;
  * - HOME, XDG_CONFIG_HOME, CODEX_HOME: an empty temp home, so `setup` and `setup skill` can
@@ -10,11 +10,14 @@
  *   (which would launch the real Overnote against the real database).
  *
  * Spawned processes (test/e2e) inherit this environment. Tests that need data create their own
- * temp dirs (test/fixtures/) and pass them through assertIsolated().
+ * temp dirs (test/fixtures/) and pass them through assertIsolated(). The temp root is removed
+ * after the test file, so a run leaves nothing behind in $TMPDIR.
  */
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
+import { afterAll } from "vitest";
 
 import { assertIsolated } from "./fixtures/guard.js";
 
@@ -34,3 +37,7 @@ for (const name of ["OVERNOTE_SUPPORT_DIR", "OVERNOTE_RUNTIME_DIR", "OVERNOTE_BA
   assertIsolated(process.env[name]!, name);
 }
 if (os.homedir() !== home) throw new Error("Test isolation: os.homedir() does not follow HOME");
+
+afterAll(() => {
+  rmSync(root, { recursive: true, force: true });
+});

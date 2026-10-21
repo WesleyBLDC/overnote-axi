@@ -49,9 +49,9 @@ export function openUrl(url: string, env: Readonly<Record<string, string | undef
   const opener = env.OVERNOTE_AXI_OPEN_CMD || "/usr/bin/open";
   return new Promise((resolve, reject) => {
     const child = spawn(opener, [url], { stdio: "ignore" });
-    child.once("error", () => reject(axiError("Could not open Overnote", "IO_ERROR")));
+    child.once("error", () => reject(axiError("could not open Overnote", "IO_ERROR")));
     child.once("exit", (code) =>
-      code === 0 ? resolve() : reject(axiError("Could not open Overnote (is Raycast installed?)", "IO_ERROR")),
+      code === 0 ? resolve() : reject(axiError("could not open Overnote (is Raycast installed?)", "IO_ERROR")),
     );
   });
 }

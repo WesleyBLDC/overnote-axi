@@ -6,6 +6,7 @@
 import os from "node:os";
 
 import type { HelperProbe, MarkdownConverter, NotesReader, NotesWriter, OvernotePaths } from "./domain/types.js";
+import { resolvePaths as resolveDefaultPaths } from "./config/paths.js";
 import { axiError } from "./errors.js";
 import { NAME } from "./meta.js";
 
@@ -74,12 +75,8 @@ export function createContext(overrides: ContextOverrides = {}): Context {
   let writer: Promise<NotesWriter> | undefined;
   let converter: Promise<MarkdownConverter> | undefined;
 
-  const resolvePaths =
-    overrides.paths ??
-    (() => {
-      // Resolved synchronously on first use; the module is tiny and has no dependencies.
-      throw axiError("paths are resolved by src/config/paths.ts", "NOT_IMPLEMENTED");
-    });
+  // Resolved synchronously on first use; the module is tiny and has no dependencies.
+  const resolvePaths = overrides.paths ?? (() => resolveDefaultPaths({ env, home, uid }));
 
   const context: Context = {
     env,
@@ -95,7 +92,7 @@ export function createContext(overrides: ContextOverrides = {}): Context {
     tryReader() {
       if (reader === undefined) {
         const open = overrides.openReader;
-        if (!open) throw axiError("no reader factory configured", "NOT_IMPLEMENTED");
+        if (!open) throw axiError("internal: no reader factory configured", "UNKNOWN");
         reader = open(context.paths().database);
       }
       return reader;
@@ -103,7 +100,7 @@ export function createContext(overrides: ContextOverrides = {}): Context {
     reader() {
       const found = context.tryReader();
       if (found) return found;
-      throw axiError("No Overnote database found", "DATABASE_NOT_FOUND", [
+      throw axiError("no Overnote database found", "DATABASE_NOT_FOUND", [
         "Open Overnote once so it creates its database: overnote-axi open",
         "Or point OVERNOTE_SUPPORT_DIR at the folder that holds notes.sqlite",
       ]);
@@ -111,7 +108,7 @@ export function createContext(overrides: ContextOverrides = {}): Context {
     writer() {
       if (!writer) {
         const connect = overrides.connectWriter;
-        if (!connect) return Promise.reject(axiError("no writer factory configured", "NOT_IMPLEMENTED"));
+        if (!connect) return Promise.reject(axiError("internal: no writer factory configured", "UNKNOWN"));
         writer = connect(context.paths(), uid);
         // A failed connection is not cached, so a later call can retry.
         writer.catch(() => {
@@ -129,13 +126,13 @@ export function createContext(overrides: ContextOverrides = {}): Context {
     converter() {
       if (!converter) {
         const load = overrides.loadConverter;
-        if (!load) return Promise.reject(axiError("no converter configured", "NOT_IMPLEMENTED"));
+        if (!load) return Promise.reject(axiError("internal: no converter configured", "UNKNOWN"));
         converter = load();
       }
       return converter;
     },
     readStdin: overrides.readStdin ?? (() => Promise.resolve(null)),
-    openUrl: overrides.openUrl ?? (() => Promise.reject(axiError("no URL opener configured", "NOT_IMPLEMENTED"))),
+    openUrl: overrides.openUrl ?? (() => Promise.reject(axiError("internal: no URL opener configured", "UNKNOWN"))),
     close() {
       reader?.close();
       reader = undefined;

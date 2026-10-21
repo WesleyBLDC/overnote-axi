@@ -1,5 +1,5 @@
 /**
- * The last line of defense for "tests never touch Wesley's real notes or agent config".
+ * The last line of defense for "tests never touch the user's real notes or agent config".
  * Fixtures and integration tests call assertIsolated() on every path they are about to hand to
  * the CLI (support dir, runtime dir, socket, hook targets, skill dir); test/setup.ts calls it on
  * the environment it installs, so a broken setup fails the whole run before any test starts.

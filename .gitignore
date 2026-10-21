@@ -4,3 +4,12 @@ coverage/
 .overnote
 *.log
 .DS_Store
+
+# Never commit secrets, local env files, or note databases.
+.env
+.env.*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.db
+*.db-*

@@ -46,9 +46,19 @@ describe("markdown conversion through @overnote/core", () => {
     expect(result.markdown).toContain("- [ ] new task");
   });
 
-  it("prepends before the first block", () => {
-    const result = converter.compose(stored([paragraph("Body")]), "**Today**", "prepend");
-    expect(result.markdown).toBe("**Today**\n\nBody");
+  it("prepends below the title line, or on top with top", () => {
+    const titled = stored([paragraph("Plan"), paragraph("Body")]);
+    expect(converter.compose(titled, "**Today**", "prepend").markdown).toBe("Plan\n\n**Today**\n\nBody");
+    expect(converter.compose(titled, "**Today**", "top").markdown).toBe("**Today**\n\nPlan\n\nBody");
+    expect(converter.belowTitle(titled)).toBe("Body");
+    const heading = converter.fromMarkdown("# Standup\n\n- [ ] demo");
+    expect(converter.compose(heading, "Notes", "prepend").markdown).toBe("# Standup\n\nNotes\n\n- [ ] demo");
+    // A note that opens with a list has no title block: prepend goes on top.
+    const list = converter.fromMarkdown("- [ ] a\n- [ ] b");
+    expect(converter.belowTitle(list)).toBeNull();
+    expect(converter.compose(list, "Today", "prepend").markdown).toBe("Today\n\n- [ ] a\n- [ ] b");
+    // A title only note gets the addition right below it.
+    expect(converter.compose(stored([paragraph("Body")]), "**Today**", "prepend").markdown).toBe("Body\n\n**Today**");
   });
 
   it("names what a markdown rewrite would lose", () => {

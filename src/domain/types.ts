@@ -112,8 +112,11 @@ export interface NotesReader {
   search(query: string, options: SearchQuery): Page<SearchHit>;
   /** Any note by full id, live or trashed. */
   get(id: NoteId): Note | null;
-  /** Notes whose id starts or ends with the fragment (case-insensitive), live or trashed. */
-  findByIdFragment(fragment: string, limit: number): NoteSummary[];
+  /**
+   * Notes whose id starts or ends with the fragment (case-insensitive), live or trashed: up to
+   * `limit` rows, live first, and the total number of matches.
+   */
+  findByIdFragment(fragment: string, limit: number): Page<NoteSummary>;
   /** Notes whose display title equals the given text after folding, live first. */
   findByTitle(title: string, limit: number): NoteSummary[];
   /** The note Overnote last showed (settings key `currentNoteId`), if it still exists. */
@@ -153,8 +156,16 @@ export interface NotesWriter {
   pin(id: NoteId): Promise<Note>;
   unpin(id: NoteId): Promise<Note>;
   movePinned(id: NoteId, direction: PinDirection): Promise<void>;
+  /** Persists the current note id (settings key `currentNoteId`), as the panel does on a switch. */
+  setCurrentNote(id: NoteId): Promise<void>;
   close(): void;
 }
+
+/**
+ * Where `update` and `link --into` add blocks: after the last block (`append`), after the title
+ * line when the note starts with one, else on top (`prepend`), or above everything (`top`).
+ */
+export type ComposeMode = "append" | "prepend" | "top";
 
 /** The stored fields a conversion needs from an existing note. */
 export type StoredNote = Pick<Note, "rawContent" | "text">;
@@ -177,8 +188,16 @@ export interface MarkdownConverter {
   fromMarkdown(markdown: string): NoteContent;
   /** The markdown core would store for this text (for no-op checks against stored markdown). */
   normalize(markdown: string): string;
-  /** Joins the addition's blocks after (append) or before (prepend) the stored document's blocks. */
-  compose(note: StoredNote, addition: string, mode: "append" | "prepend"): NoteContent;
+  /**
+   * Joins the addition's blocks to the stored document's blocks: after them (append), after the
+   * title line when the first block is one, else before them (prepend), or before them (top).
+   */
+  compose(note: StoredNote, addition: string, mode: ComposeMode): NoteContent;
+  /**
+   * The markdown below the title line when the note's first block is one (where `prepend`
+   * inserts, for its no-op check); null when the note has no such title block.
+   */
+  belowTitle(note: StoredNote): string | null;
   /** Every field derived from the stored document, as a write of it unchanged would store them. */
   current(note: StoredNote): NoteContent;
   /** Empty when a markdown rewrite keeps the stored document exactly; else what would be lost. */
@@ -189,6 +208,13 @@ export interface MarkdownConverter {
    * refuses with LOSSY_REWRITE when `losses` is not empty, unless `--allow-loss` was given.
    */
   edit(note: StoredNote, oldText: string, newText: string, all: boolean): EditOutcome;
+  /**
+   * Whether a write still stands in `after`, a later stored version: every top level block the
+   * write added (in `written`, not in `before`) is still there, and every block it removed is
+   * still gone. True when the open editor merged its own edits around the write; false when an
+   * editor that does not merge saved its older content over it (OVERWRITTEN_BY_EDITOR).
+   */
+  writeSurvived(before: StoredNote, written: StoredNote, after: StoredNote): boolean;
 }
 
 export type EditOutcome =
@@ -215,5 +241,10 @@ export type NoteRef =
 export interface ResolveOptions {
   /** Default false: a trashed match is NOTE_TRASHED for content writes and still resolves for reads. */
   allowTrashed: boolean;
+  /**
+   * The command doing the lookup (default `read`), so error hints repeat it (`delete <id>`) and
+   * look where that command looks (`trash` for `recover`).
+   */
+  command?: string;
 }
 

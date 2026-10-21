@@ -38,23 +38,6 @@ export function isoMinute(millis: number): string {
   return `${isoDate(millis)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/** Compact age such as `45s`, `3m`, `2h`, `5d`, `4mo`, `1y`. */
-export function relativeTime(millis: number, now: number): string {
-  const seconds = Math.max(0, Math.round((now - millis) / 1000));
-  const units: readonly [limit: number, per: number, label: string][] = [
-    [60, 1, "s"],
-    [3600, 60, "m"],
-    [86400, 3600, "h"],
-    [2592000, 86400, "d"],
-    [31536000, 2592000, "mo"],
-    [Number.POSITIVE_INFINITY, 31536000, "y"],
-  ];
-  for (const [limit, per, label] of units) {
-    if (seconds < limit) return `${Math.floor(seconds / per)}${label}`;
-  }
-  return "0s";
-}
-
 /** Collapses the home directory to `~` so paths stay short and stable. */
 export function collapseHome(file: string, home: string): string {
   if (home !== "" && file === home) return "~";
@@ -81,15 +64,23 @@ export function codePoints(text: string): number {
 }
 
 /**
- * Never drops the field: keeps a preview of `limit` code points and states both sizes in the
- * same unit, labeled with what was measured (`markdown chars` for note bodies).
+ * Never drops the field: keeps a preview of at most `limit` code points and states both sizes in
+ * the same unit, labeled with what was measured (`markdown chars` for note bodies). The cut
+ * lands on the last line break, else the last space, in the final quarter of the window, so a
+ * preview never ends mid word; only text without either falls back to a hard cut.
  */
 export function truncate(text: string, full = false, limit = TRUNCATE_LIMIT, unit = "markdown chars"): Truncated {
   const points = Array.from(text);
   const total = points.length;
   if (full || total <= limit) return { text, truncated: false, total };
-  const head = points.slice(0, limit).join("").replace(/\s+$/, "");
-  return { text: `${head}\n... (truncated, showing ${limit} of ${total} ${unit})`, truncated: true, total };
+  const window = points.slice(0, limit);
+  const floor = Math.floor(limit * 0.75);
+  let cut = window.lastIndexOf("\n");
+  if (cut < floor) cut = Math.max(window.lastIndexOf(" "), window.lastIndexOf("\t"));
+  if (cut < floor) cut = limit;
+  const head = window.slice(0, cut).join("").replace(/\s+$/, "");
+  const shown = codePoints(head);
+  return { text: `${head}\n... (truncated, showing ${shown} of ${total} ${unit})`, truncated: true, total };
 }
 
 // ---------------------------------------------------------------------------
@@ -104,9 +95,17 @@ export function rows<T>(items: readonly T[], columns: readonly Column<T>[]): Rec
   });
 }
 
-/** `count: 20 of 143 live notes` (AXI principle 4). */
+/**
+ * `noun` agreeing with `total`: the first `notes` becomes `note` when the total is 1, so
+ * `1 of 1 note in Recently Deleted` and `all 1 live note` read correctly.
+ */
+export function countNoun(total: number, noun: string): string {
+  return total === 1 ? noun.replace(/\bnotes\b/, "note") : noun;
+}
+
+/** `count: 20 of 143 live notes` (AXI principle 4), with both numbers even when they agree. */
 export function countLine(shown: number, total: number, noun: string): string {
-  return shown === total ? `${total} ${noun}` : `${shown} of ${total} ${noun}`;
+  return `${shown} of ${total} ${countNoun(total, noun)}`;
 }
 
 /** A uniform list with its aggregate count: `count: ...` then `label[N]{cols}:` rows. */

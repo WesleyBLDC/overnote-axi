@@ -1,6 +1,6 @@
 /**
  * In-memory NotesReader and NotesWriter for command tests (test/commands/), shared by the read
- * and write slices. Both views sit on one FakeStore, so a write is visible to the next read just
+ * and write command tests. Both views sit on one FakeStore, so a write is visible to the next read just
  * as it is through the helper and SQLite. Behavior follows overnote docs/architecture.md
  * section 5, and the writer throws the AxiErrors that src/helper/notes-writer.ts translates to:
  *
@@ -55,6 +55,11 @@ export interface FakeNoteInput extends Partial<Omit<Note, "id">> {
 export class FakeStore {
   readonly notes = new Map<NoteId, Note>();
   currentNoteId: NoteId | null = null;
+  /**
+   * Helpers before Overnote's fix persist every created or duplicated note as current; set false
+   * to model a fixed helper, which does so only for `create` with `show`.
+   */
+  newNotesBecomeCurrent = true;
   helperRunning = true;
   clock = 1_792_000_000_000;
   private counter = 0;
@@ -81,7 +86,7 @@ export class FakeStore {
       createdAt: at,
       updatedAt: input.updatedAt ?? at,
       deletedAt: input.deletedAt ?? null,
-      lastAccessedAt: input.lastAccessedAt ?? at,
+      lastAccessedAt: input.lastAccessedAt === undefined ? at : input.lastAccessedAt,
       caretPosition: input.caretPosition ?? null,
     };
     this.notes.set(note.id, note);
@@ -189,12 +194,12 @@ export class FakeReader implements NotesReader {
     return note ? { ...note } : null;
   }
 
-  findByIdFragment(fragment: string, limit: number): NoteSummary[] {
+  findByIdFragment(fragment: string, limit: number): Page<NoteSummary> {
     const upper = fragment.toUpperCase();
-    return [...this.store.notes.values()]
+    const matches = [...this.store.notes.values()]
       .filter((note) => note.id.startsWith(upper) || note.id.endsWith(upper))
-      .slice(0, limit)
-      .map(summary);
+      .sort((a, b) => Number(a.deletedAt !== null) - Number(b.deletedAt !== null));
+    return { items: matches.slice(0, limit).map(summary), total: matches.length };
   }
 
   findByTitle(title: string, limit: number): NoteSummary[] {
@@ -276,7 +281,7 @@ export class FakeWriter implements NotesWriter {
   async create(content: NoteContent, options?: { show?: boolean }): Promise<Note> {
     this.enter("create", content, options);
     const note = this.store.add({ ...content });
-    this.store.currentNoteId = note.id;
+    if (this.store.newNotesBecomeCurrent || options?.show === true) this.store.currentNoteId = note.id;
     return { ...note };
   }
 
@@ -343,7 +348,7 @@ export class FakeWriter implements NotesWriter {
       title: titleSuffix ? `${source.title} ${titleSuffix}` : source.title,
       caretPosition: 0,
     });
-    this.store.currentNoteId = copy.id;
+    if (this.store.newNotesBecomeCurrent) this.store.currentNoteId = copy.id;
     return { ...copy };
   }
 
@@ -377,6 +382,11 @@ export class FakeWriter implements NotesWriter {
     const neighbor = pins[direction === "up" ? index - 1 : index + 1];
     if (!neighbor) return;
     [note.pinned, neighbor.pinned] = [neighbor.pinned, note.pinned];
+  }
+
+  async setCurrentNote(id: NoteId): Promise<void> {
+    this.enter("setCurrentNote", id);
+    this.store.currentNoteId = id;
   }
 
   close(): void {

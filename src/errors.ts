@@ -32,6 +32,8 @@ export type ErrorCode =
   | "HELPER_NOT_RUNNING"
   /** The helper did not answer in time. */
   | "HELPER_TIMEOUT"
+  /** The helper dropped the connection after a write was sent, so it may or may not have landed. */
+  | "OUTCOME_UNKNOWN"
   /** The helper answered with an error the CLI does not map more specifically. */
   | "HELPER_ERROR"
   /** No notes database yet (Overnote was never opened, or the support dir is wrong). */
@@ -40,9 +42,18 @@ export type ErrorCode =
   | "DATABASE_ERROR"
   /** Filesystem failure outside the notes database (content files, hook config). */
   | "IO_ERROR"
-  /** Scaffold placeholder; must not survive the build phase. */
+  /** Placeholder for command modules that are not implemented yet. */
   | "NOT_IMPLEMENTED"
   | "UNKNOWN";
+
+/** A scalar detail field. */
+export type DetailScalar = string | number | boolean | null;
+/**
+ * Extra TOON fields of an error: scalars, or uniform rows (for example the candidates of
+ * AMBIGUOUS_NOTE), which render as a TOON table.
+ */
+export type ErrorDetail = DetailScalar | readonly Readonly<Record<string, DetailScalar>>[];
+export type ErrorDetails = Readonly<Record<string, ErrorDetail>>;
 
 export const EXIT_OK = 0;
 export const EXIT_ERROR = 1;
@@ -54,7 +65,7 @@ export class AxiError extends Error {
     readonly code: ErrorCode,
     readonly suggestions: readonly string[] = [],
     /** Optional extra TOON fields rendered between `code:` and `help:` (for example the stored `updatedAt`). */
-    readonly details: Readonly<Record<string, string | number | boolean | null>> = {},
+    readonly details: ErrorDetails = {},
   ) {
     super(message);
     this.name = "AxiError";
@@ -69,7 +80,7 @@ export function axiError(
   message: string,
   code: ErrorCode,
   suggestions: readonly string[] = [],
-  details: Readonly<Record<string, string | number | boolean | null>> = {},
+  details: ErrorDetails = {},
 ): AxiError {
   return new AxiError(message, code, suggestions, details);
 }
