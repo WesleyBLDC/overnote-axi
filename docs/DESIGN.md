@@ -61,6 +61,8 @@ bin/overnote-axi.ts ── --version fast path, else dynamic import ──▶ sr
   - **append, prepend, `link --into`**: `compose` loads the stored document with `loadDoc(rawContent, text)` and inserts the addition's blocks (`markdownToDoc`) after its blocks (append), after the title line when the first block is a heading or paragraph holding just that line (prepend), or before every block (`update --top`), then `buildNoteContent` derives every field; existing blocks survive exactly (the empty caret paragraph at the joining edge is dropped).
   - **`edit`**: block scoped; only top level blocks whose own markdown contains `--old` are serialized, edited, and parsed back, and only they are checked for losses; when the whole note holds more matches than its blocks do (a match spans blocks), the matches are counted on the whole note and the edit rewrites the whole document.
   - **`update --replace`**: a full rewrite, preceded by `rewriteLosses`, which compares the stored document with its markdown round trip.
+  - **`duplicate --suffix`**: `duplicateContent` inserts the suffix as unmarked text into the line the title comes from (the first textblock with text, after the last non space character of its first line, before any hard break; at the start, without leading spaces, when that line is blank) and derives every field from the result, so the rest of the copy survives exactly.
+    It is core's `duplicateContent` when the bundled core has it (Overnote protocol v3.0), else the same rule on the loaded document.
   - When an `edit` or `--replace` would lose anything, it fails with `LOSSY_REWRITE`, whose `losses` field names it (`unsupported-content`, `collapsed-toggle`, or `formatting`, such as blank line runs or implicit list numbers); `--allow-loss` writes anyway.
   On the 19 notes of a real database, append kept every block of every note, a whole note rewrite would have changed 6 of them, and a block scoped edit of a word was clean in 104 of 114 cases.
 - **One snapshot per command.** Every command runs all of its reads inside one `reader.snapshot()`, a deferred read transaction, so counts, rows, and the current note come from the same WAL snapshot.
@@ -432,7 +434,13 @@ pinned: 01JAB3K9QW Standup (position 4 of 4)
 
 ### 6.13 `duplicate <note>`
 
-`notes.duplicate` with an optional `--suffix <text>`; prints the new note like `create`, and like `create` (without `--open`) keeps `current` on the note it named.
+An exact copy with `notes.duplicate { id }`; prints the new note like `create`, and like `create` (without `--open`) keeps `current` on the note it named.
+
+- The CLI never sends `titleSuffix`: helpers before protocol v3.0 stored it in the title only, so the copy's first line kept the old title and its next save dropped the suffix, and v3.0 refuses it with `-32602`.
+- With `--suffix <text>` (an empty one is no suffix), it builds the copy's content with `converter.duplicateContent` (section 3.1) and writes it with `notes.update`, `expectedUpdatedAt` set to the copy's `updatedAt`, after restoring `current`; this works on every helper version.
+  The confirmation shows the suffixed title.
+- The copy exists before the suffix is written, so a failed or conflicting suffix write names the copy (`id` field, `overnote-axi read <id>` hint) and says not to duplicate again; a conflict is `STALE_WRITE`.
+- Without `--suffix` it is the single `notes.duplicate` call.
 
 ### 6.14 `delete <note>`
 

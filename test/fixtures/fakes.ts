@@ -338,14 +338,14 @@ export class FakeWriter implements NotesWriter {
     return count;
   }
 
-  async duplicate(id: NoteId, titleSuffix?: string): Promise<Note> {
-    this.enter("duplicate", id, titleSuffix);
+  async duplicate(id: NoteId): Promise<Note> {
+    this.enter("duplicate", id);
     const source = this.find(id);
     const copy = this.store.add({
       rawContent: source.rawContent,
       markdown: source.markdown,
       text: source.text,
-      title: titleSuffix ? `${source.title} ${titleSuffix}` : source.title,
+      title: source.title,
       caretPosition: 0,
     });
     if (this.store.newNotesBecomeCurrent) this.store.currentNoteId = copy.id;

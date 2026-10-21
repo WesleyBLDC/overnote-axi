@@ -139,8 +139,8 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     expect(await codeOf(writer.get(loose.id))).toBe("NOTE_NOT_FOUND");
     expect(await codeOf(writer.permanentlyDelete(loose.id))).toBe("NOTE_NOT_FOUND");
 
-    const copy = await writer.duplicate(first.id, " (copy)");
-    expect(copy).toMatchObject({ title: "First pin (copy)", pinned: null });
+    const copy = await writer.duplicate(first.id);
+    expect(copy).toMatchObject({ title: first.title, markdown: first.markdown, rawContent: first.rawContent, pinned: null });
     await writer.trash(copy.id);
     await writer.trash(first.id);
     expect(await writer.emptyTrash()).toBe(2);

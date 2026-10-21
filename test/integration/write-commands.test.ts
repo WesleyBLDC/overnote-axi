@@ -212,7 +212,7 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     const copy = await run(["duplicate", a, "--suffix", " (copy)"]);
     expect(copy.code).toBe(0);
     const copyId = idOf(copy.out);
-    expect(stored(copyId)).toMatchObject({ title: "Pin A (copy)", pinned: null });
+    expect(stored(copyId)).toMatchObject({ title: "Pin A (copy)", markdown: "Pin A (copy)", pinned: null });
 
     expect((await run(["delete", a])).out).toContain("(in Recently Deleted)");
     expect(stored(a).deletedAt).not.toBeNull();
@@ -232,6 +232,33 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     expect((await run(["trash", "--empty", "--permanent", "--expected-count", "3"])).out).toContain("code: STALE_WRITE");
     expect((await run(["trash", "--empty", "--permanent", "--expected-count", "2"])).out).toBe("emptied: 2 notes erased\n");
     expect((await run(["trash"])).out).toBe("trash: 0 notes in Recently Deleted\n");
+  });
+
+  it("writes a duplicate's suffix into its title line, so a later edit keeps the title", async () => {
+    const shown = await openElsewhere();
+    const source = idOf((await run(["create", "--title", "Groceries", "--content", "**milk**  \neggs\n\n- [ ] bread"])).out);
+    const before = stored(source);
+
+    const copy = await run(["duplicate", source, "--suffix", " copy"]);
+    expect(copy.code).toBe(0);
+    expect(copy.out).toContain("  title: Groceries copy\n");
+    const copyId = idOf(copy.out);
+    expect(stored(copyId)).toMatchObject({
+      title: "Groceries copy",
+      markdown: "# Groceries copy\n\n**milk**  \neggs\n\n- [ ] bread",
+      text: "Groceries copy\n\nmilk\neggs\n\nbread",
+      pinned: null,
+    });
+    expect(stored(source)).toEqual(before);
+    expect(currentId()).toBe(shown);
+
+    // The title comes from the document now, so a content write keeps it.
+    expect((await run(["update", copyId, "--content", "- [ ] butter"])).out).not.toContain("title changed");
+    expect(stored(copyId).title).toBe("Groceries copy");
+
+    // Without --suffix the copy is exact.
+    const exact = idOf((await run(["duplicate", source])).out);
+    expect(stored(exact)).toMatchObject({ title: "Groceries", rawContent: before.rawContent, markdown: before.markdown });
   });
 
   it("leaves current on the note it named after create and duplicate, unless create --open", async () => {

@@ -88,22 +88,51 @@ describe("move", () => {
 });
 
 describe("duplicate", () => {
-  it("copies a note with an optional suffix and prints it like create", async () => {
-    const source = h.seed("Plan");
-    const { code, out } = await h.run(["duplicate", source.id, "--suffix", "(draft)"]);
+  it("copies a note exactly, then writes the suffix into the copy's title line", async () => {
+    const source = h.seed("# Plan\n\n- milk");
+    const { code, out } = await h.run(["duplicate", source.id, "--suffix", " (draft)"]);
     expect(code).toBe(0);
     const copy = h.fakes.store.live().find((note) => note.id !== source.id)!;
+    expect(copy).toMatchObject({ title: "Plan (draft)", markdown: "# Plan (draft)\n\n- milk", text: "Plan (draft)\n\nmilk" });
     expect(splitLines(out)).toEqual([
       "duplicated:",
       `  id: ${copy.id}`,
-      `  title: ${copy.title}`,
+      "  title: Plan (draft)",
       `  from: ${source.id}`,
       `  updatedAt: ${copy.updatedAt}`,
       "help[2]:",
       `  overnote-axi read ${copy.id}`,
       `  overnote-axi update ${copy.id} --content "<markdown>"`,
     ]);
-    expect(h.fakes.writer.calls.find((call) => call.method === "duplicate")?.args).toEqual([source.id, "(draft)"]);
+    const calls = h.fakes.writer.calls;
+    expect(calls.find((call) => call.method === "duplicate")?.args).toEqual([source.id]);
+    const update = calls.find((call) => call.method === "update")?.args[0] as { id: string; expectedUpdatedAt: number };
+    expect(update).toMatchObject({ id: copy.id, title: "Plan (draft)" });
+    expect(update.expectedUpdatedAt).toBeLessThan(copy.updatedAt);
+    expect(h.stored(source.id).markdown).toBe("# Plan\n\n- milk");
+  });
+
+  it("without --suffix makes one exact duplicate call", async () => {
+    const source = h.seed("Plan");
+    h.fakes.store.newNotesBecomeCurrent = false;
+    expect((await h.run(["duplicate", source.id, "--suffix="])).code).toBe(0);
+    expect((await h.run(["duplicate", source.id])).code).toBe(0);
+    expect(h.writes()).toEqual(["duplicate", "duplicate"]);
+    expect(h.fakes.store.live().map((note) => note.title)).toEqual(["Plan", "Plan", "Plan"]);
+  });
+
+  it("names the copy when the suffix write fails, so it is not duplicated again", async () => {
+    const source = h.seed("Plan");
+    h.fakes.store.newNotesBecomeCurrent = false;
+    h.fakes.store.failNext("update", axiError("Overnote did not answer notes.update in time; retry once", "HELPER_TIMEOUT"));
+    const { code, out } = await h.run(["duplicate", source.id, "--suffix", " copy"]);
+    const copy = h.fakes.store.live().find((note) => note.id !== source.id)!;
+    expect(code).toBe(1);
+    expect(out).toContain(`error: "duplicated ${copy.id}, but adding the suffix failed (Overnote did not answer`);
+    expect(out).toContain("do not duplicate it again");
+    expect(out).toContain("code: HELPER_TIMEOUT");
+    expect(out).toContain(`overnote-axi read ${copy.id}`);
+    expect(copy.title).toBe("Plan");
   });
 
   it("refuses a note in Recently Deleted", async () => {
@@ -118,6 +147,9 @@ describe("duplicate", () => {
     expect((await h.run(["duplicate", source.id])).code).toBe(0);
     expect(h.fakes.store.currentNoteId).toBe(shown.id);
     expect(h.writes()).toEqual(["duplicate", "setCurrentNote"]);
+    expect((await h.run(["duplicate", source.id, "--suffix", " copy"])).code).toBe(0);
+    expect(h.fakes.store.currentNoteId).toBe(shown.id);
+    expect(h.writes()).toEqual(["duplicate", "setCurrentNote", "duplicate", "setCurrentNote", "update"]);
   });
 });
 

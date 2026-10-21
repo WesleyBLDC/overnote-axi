@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import * as core from "@overnote/core";
 import type { JSONContent } from "@overnote/core";
 
-import { converter } from "../../src/markdown/convert.js";
+import type { NoteContent, StoredNote } from "../../src/domain/types.js";
+import { converter, suffixedContent } from "../../src/markdown/convert.js";
 
 const paragraph = (text: string): JSONContent => ({ type: "paragraph", content: [{ type: "text", text }] });
 
@@ -93,5 +95,60 @@ describe("markdown conversion through @overnote/core", () => {
   it("falls back to the whole document for a match that spans blocks", () => {
     const outcome = converter.edit(stored([paragraph("one"), paragraph("two")]), "one\n\ntwo", "both", false);
     expect(outcome).toMatchObject({ status: "ok", scope: "document", replaced: 1 });
+  });
+});
+
+describe("a duplicate's title suffix", () => {
+  /** Core's own rule when the bundled core has it (Overnote protocol v3.0). */
+  const coreRule = (core as Readonly<Record<string, unknown>>)["duplicateContent"] as
+    | ((note: StoredNote, suffix: string) => NoteContent)
+    | undefined;
+
+  /** The fallback's content, checked against the converter, core when present, and a save. */
+  function copy(note: StoredNote, suffix = " copy"): NoteContent {
+    const content = suffixedContent(note, suffix);
+    expect(converter.duplicateContent(note, suffix)).toEqual(content);
+    if (coreRule) expect(coreRule(note, suffix)).toEqual(content);
+    // Every field comes from the suffixed document, so a later save derives the same title.
+    expect(converter.current(content)).toEqual(content);
+    return content;
+  }
+  const fromMarkdown = (markdown: string) => copy(converter.fromMarkdown(markdown));
+
+  it("ends a heading's line with the suffix", () => {
+    expect(fromMarkdown("# Groceries\n\n- milk")).toMatchObject({
+      title: "Groceries copy",
+      markdown: "# Groceries copy\n\n- milk",
+      text: "Groceries copy\n\nmilk",
+    });
+  });
+
+  it("puts it unmarked after a bold first line, before the hard break", () => {
+    expect(fromMarkdown("**Plan**  \nsecond line")).toMatchObject({
+      title: "Plan copy",
+      markdown: "**Plan** copy  \nsecond line",
+    });
+    expect(fromMarkdown("**Plan**   trailing  \nnext").markdown).toBe("**Plan**   trailing copy  \nnext");
+  });
+
+  it("puts it on the first line of a code block that comes first", () => {
+    expect(fromMarkdown("```\nfirst\nsecond\n```")).toMatchObject({ title: "first copy", text: "first copy\nsecond" });
+  });
+
+  it("starts an empty note with it (no leading space), and skips empty blocks before the title", () => {
+    expect(fromMarkdown("")).toMatchObject({ title: "copy", text: "copy", markdown: "copy" });
+    expect(copy(converter.fromMarkdown(""), "  ")).toEqual(converter.fromMarkdown(""));
+    expect(fromMarkdown("**Plan**").markdown).toBe("**Plan** copy");
+    expect(copy(stored([{ type: "paragraph" }, paragraph("Later")]))).toMatchObject({ title: "Later copy" });
+    const breakFirst = stored([{ type: "paragraph", content: [{ type: "hardBreak" }, { type: "text", text: "second" }] }]);
+    expect(copy(breakFirst).text).toBe("copy\nsecond");
+    expect(fromMarkdown("- [ ] task one\n- [ ] two").markdown).toBe("- [ ] task one copy\n- [ ] two");
+  });
+
+  it("keeps the rest of the document exactly, unknown nodes included", () => {
+    const note = stored([paragraph("Title"), unknownNode, collapsedToggle]);
+    const content = copy(note);
+    expect(blocksOf(content.rawContent)).toEqual([paragraph("Title copy"), ...blocksOf(converter.current(note).rawContent).slice(1)]);
+    expect(copy(note, "")).toEqual(converter.current(note));
   });
 });

@@ -152,7 +152,11 @@ export interface NotesWriter {
   /** Only affects notes already in the trash. */
   permanentlyDelete(id: NoteId): Promise<void>;
   emptyTrash(): Promise<number>;
-  duplicate(id: NoteId, titleSuffix?: string): Promise<Note>;
+  /**
+   * An exact copy (`notes.duplicate { id }`). A title suffix is written afterwards with `update`,
+   * because helpers before protocol v3.0 store `titleSuffix` in the title only and v3.0 refuses it.
+   */
+  duplicate(id: NoteId): Promise<Note>;
   pin(id: NoteId): Promise<Note>;
   unpin(id: NoteId): Promise<Note>;
   movePinned(id: NoteId, direction: PinDirection): Promise<void>;
@@ -202,6 +206,11 @@ export interface MarkdownConverter {
   current(note: StoredNote): NoteContent;
   /** Empty when a markdown rewrite keeps the stored document exactly; else what would be lost. */
   rewriteLosses(note: StoredNote): RewriteLoss[];
+  /**
+   * The content of a copy whose title ends in `suffix`: the suffix goes into the line the title
+   * comes from and every field is derived from the result (core's `duplicateContent` rule).
+   */
+  duplicateContent(note: StoredNote, suffix: string): NoteContent;
   /**
    * Exact text replacement against the markdown `read` shows, scoped to the top level blocks
    * that contain the match (whole document only when the match spans blocks). The caller
