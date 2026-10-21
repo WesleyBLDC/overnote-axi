@@ -6,6 +6,13 @@
  * (architecture.md section 5): pinned key asc first, then the order column desc, then id asc;
  * filters fold with @overnote/core/text `fold` and match `title_fold` / `text_fold` with an
  * escaped LIKE. Loading node:sqlite mutes only its ExperimentalWarning.
+ *
+ * - On open, `PRAGMA user_version` must be in SUPPORTED_SCHEMA_VERSIONS; anything else is
+ *   DATABASE_ERROR with the hint to update overnote-axi, so queries never run on unknown columns.
+ * - `snapshot()` wraps one command's reads in a deferred read transaction (one WAL snapshot).
+ * - `backlinks()` uses LIKE only as a prefilter (`%toggle-notes?context=%<id>%`, with `%`, `_`
+ *   and `\` escaped); it scans the table (no index helps a leading wildcard), then confirms each
+ *   candidate with extractNoteLinks, which decodes the context, so differently encoded links match.
  */
 import type {
   ListQuery,
@@ -20,6 +27,9 @@ import type {
   TrashQuery,
 } from "../domain/types.js";
 import { notImplemented } from "../errors.js";
+
+/** Schema versions this build understands (overnote docs/architecture.md section 6). */
+export const SUPPORTED_SCHEMA_VERSIONS: readonly number[] = [1];
 
 /**
  * Opens the database, or returns null when the file does not exist yet.
@@ -60,6 +70,9 @@ export class ReadOnlyNotesDb implements NotesReader {
   }
   schemaVersion(): number {
     throw notImplemented("schemaVersion");
+  }
+  snapshot<T>(_read: (reader: NotesReader) => T): T {
+    throw notImplemented("snapshot");
   }
   close(): void {}
 }

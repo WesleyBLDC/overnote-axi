@@ -24,6 +24,10 @@ export type ErrorCode =
   | "TEXT_NOT_FOUND"
   /** `edit --old` text occurs more than once and `--all` was not given. */
   | "AMBIGUOUS_TEXT"
+  /** A markdown rewrite (`edit`, `update --replace`) would lose stored content; `--allow-loss` overrides. */
+  | "LOSSY_REWRITE"
+  /** The write landed, but the open editor saved over it within the verify window. */
+  | "OVERWRITTEN_BY_EDITOR"
   /** Writes need the running Overnote helper and its socket is not answering. */
   | "HELPER_NOT_RUNNING"
   /** The helper did not answer in time. */
@@ -72,6 +76,12 @@ export function axiError(
 
 export function validation(message: string, suggestions: readonly string[] = []): AxiError {
   return new AxiError(message, "VALIDATION_ERROR", suggestions);
+}
+
+/** Fixed next steps for an unexpected failure (AXI principle 6: every error names a fix). */
+export function unknownFailureHelp(argv: readonly string[]): string[] {
+  const args = argv.join(" ");
+  return ["overnote-axi status", `OVERNOTE_AXI_DEBUG=1 overnote-axi${args ? ` ${args}` : ""}`];
 }
 
 export function notImplemented(what: string): AxiError {

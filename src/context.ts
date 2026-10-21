@@ -5,7 +5,7 @@
  */
 import os from "node:os";
 
-import type { MarkdownConverter, NotesReader, NotesWriter, OvernotePaths } from "./domain/types.js";
+import type { HelperProbe, MarkdownConverter, NotesReader, NotesWriter, OvernotePaths } from "./domain/types.js";
 import { axiError } from "./errors.js";
 import { NAME } from "./meta.js";
 
@@ -30,6 +30,13 @@ export interface Context {
   tryReader(): NotesReader | null;
   /** Connects to the running helper on first use; HELPER_NOT_RUNNING when it is not answering. */
   writer(): Promise<NotesWriter>;
+  /**
+   * Pings the helper with a short timeout (PROBE_TIMEOUT_MS) and never throws: the home view and
+   * the session hook use it so a hung socket cannot stall a session start.
+   */
+  probeHelper(): Promise<HelperProbe>;
+  /** Waits, for the post write verify window; tests inject an instant one. */
+  sleep(ms: number): Promise<void>;
   /** Loads the @overnote/core chunk on first use. */
   converter(): Promise<MarkdownConverter>;
   /** All of stdin when it is piped, null when stdin is a terminal. */
@@ -50,6 +57,8 @@ export interface ContextOverrides {
   paths?: () => OvernotePaths;
   openReader?: (file: string) => NotesReader | null;
   connectWriter?: (paths: OvernotePaths, uid: number) => Promise<NotesWriter>;
+  probeHelper?: (paths: OvernotePaths, uid: number) => Promise<HelperProbe>;
+  sleep?: (ms: number) => Promise<void>;
   loadConverter?: () => Promise<MarkdownConverter>;
   readStdin?: () => Promise<string | null>;
   openUrl?: (url: string) => Promise<void>;
@@ -111,6 +120,12 @@ export function createContext(overrides: ContextOverrides = {}): Context {
       }
       return writer;
     },
+    probeHelper() {
+      const probe = overrides.probeHelper;
+      if (!probe) return Promise.resolve({ state: "stopped" });
+      return probe(context.paths(), uid).catch(() => ({ state: "stopped" }) as const);
+    },
+    sleep: overrides.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
     converter() {
       if (!converter) {
         const load = overrides.loadConverter;

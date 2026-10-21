@@ -1,4 +1,7 @@
-/** `link <note>` (slice: write commands). Print a note's deeplink, or insert it with --into. */
+/**
+ * `link <note>` (slice: write commands). Print a note's deeplink, or insert it with --into
+ * through writeContent and converter.compose (never a markdown rewrite of the target).
+ */
 import type { CommandSpec } from "../command.js";
 import { notImplemented } from "../errors.js";
 import { NOTE_ARG } from "./shared.js";

@@ -31,3 +31,11 @@ export function resolvePaths(_input: PathEnv): OvernotePaths {
 export function isTrustedRuntimeDir(_dir: string, _uid: number): boolean {
   throw notImplemented("isTrustedRuntimeDir");
 }
+
+/**
+ * Checks the socket itself with lstat: a socket (not a symlink or regular file) owned by `uid`.
+ * Runs after isTrustedRuntimeDir and before every connection.
+ */
+export function isTrustedSocket(_socketPath: string, _uid: number): boolean {
+  throw notImplemented("isTrustedSocket");
+}

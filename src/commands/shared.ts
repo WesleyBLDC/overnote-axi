@@ -33,6 +33,12 @@ export const EXPECTED_UPDATED_AT_FLAG: FlagSpec = {
   description: "Refuse the write unless the note's updatedAt still equals this value (from read)",
 };
 
+export const ALLOW_LOSS_FLAG: FlagSpec = {
+  name: "allow-loss",
+  type: "boolean",
+  description: "Write even though the markdown rewrite drops content LOSSY_REWRITE named",
+};
+
 export function limitFlag(defaultValue: number, max = 500): FlagSpec {
   return {
     name: "limit",

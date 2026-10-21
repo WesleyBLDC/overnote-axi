@@ -22,12 +22,19 @@ export function markdownNoteLink(_title: string, _id: NoteId): string {
   throw notImplemented("markdownNoteLink");
 }
 
-/** Every Overnote note deeplink in the markdown, in order, without duplicates. */
+/**
+ * Every Overnote note deeplink in the markdown, in order, without duplicates. The context is
+ * decoded (percent encoded or a hand pasted raw `{"id":...}`) before the id is read.
+ */
 export function extractNoteLinks(_markdown: string): NoteLink[] {
   throw notImplemented("extractNoteLinks");
 }
 
-/** A LIKE pattern matching markdown that links to `id` (used by NotesReader.backlinks). */
+/**
+ * A LIKE prefilter for markdown that may link to `id`: `%toggle-notes?context=%<id>%` with `%`,
+ * `_` and the escape character escaped (use with `ESCAPE '\\'`). It is a full table scan and can
+ * over match; NotesReader.backlinks confirms each candidate with extractNoteLinks.
+ */
 export function backlinkLikePattern(_id: NoteId): string {
   throw notImplemented("backlinkLikePattern");
 }

@@ -8,7 +8,7 @@
  */
 import { parseArgs, renderCommandHelp, wantsHelp } from "./args.js";
 import type { Context, Output } from "./context.js";
-import { AxiError, axiError, EXIT_OK, exitCodeFor, validation } from "./errors.js";
+import { AxiError, axiError, EXIT_OK, exitCodeFor, unknownFailureHelp, validation } from "./errors.js";
 import { DESCRIPTION, NAME } from "./meta.js";
 import { renderError } from "./output/render.js";
 import { COMMANDS, findCommand } from "./registry.js";
@@ -41,6 +41,23 @@ export function topLevelHelp(): string {
     `  ${NAME} read current`,
     `  ${NAME} update current --content "- [ ] follow up"`,
   ].join("\n");
+}
+
+export interface ErrorSource {
+  once(event: "error", listener: (error: NodeJS.ErrnoException) => void): unknown;
+}
+
+/**
+ * Agents often pipe output into `head`. When the reader goes away, stdout emits EPIPE; that is
+ * a normal end of output, so the process exits 0 instead of printing a stack (AXI principle 6).
+ * Anything else is rethrown. Called once by bin/overnote-axi.ts on the real stdout.
+ */
+export function guardStdout(stream: ErrorSource, setExitCode: (code: number) => void, exit: () => void): void {
+  stream.once("error", (error) => {
+    if (error.code !== "EPIPE") throw error;
+    setExitCode(EXIT_OK);
+    exit();
+  });
 }
 
 export async function main(options: MainOptions = {}): Promise<number> {
@@ -91,7 +108,8 @@ export async function main(options: MainOptions = {}): Promise<number> {
     write(result.output);
     return result.exitCode ?? EXIT_OK;
   } catch (error) {
-    const failure = error instanceof AxiError ? error : axiError("Unexpected failure", "UNKNOWN");
+    const failure =
+      error instanceof AxiError ? error : axiError("Unexpected failure", "UNKNOWN", unknownFailureHelp(argv));
     write(renderError(failure.message, failure.code, failure.suggestions, failure.details));
     if (!(error instanceof AxiError) && process.env.OVERNOTE_AXI_DEBUG) {
       // Diagnostics only on request, and on stderr where agents do not read.

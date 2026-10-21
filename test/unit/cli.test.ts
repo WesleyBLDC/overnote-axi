@@ -1,7 +1,10 @@
+import { EventEmitter } from "node:events";
+
 import { describe, expect, it } from "vitest";
 
-import { main } from "../../src/cli.js";
+import { guardStdout, main } from "../../src/cli.js";
 import { createContext } from "../../src/context.js";
+import { unknownFailureHelp } from "../../src/errors.js";
 
 async function run(argv: string[]): Promise<{ code: number; out: string }> {
   let out = "";
@@ -47,5 +50,30 @@ describe("cli", () => {
     const { code, out } = await run(["status"]);
     expect([0, 1]).toContain(code);
     expect(out.endsWith("\n")).toBe(true);
+  });
+
+  it("gives an unexpected failure actionable help", () => {
+    expect(unknownFailureHelp(["read", "current"])).toEqual([
+      "overnote-axi status",
+      "OVERNOTE_AXI_DEBUG=1 overnote-axi read current",
+    ]);
+  });
+});
+
+describe("guardStdout", () => {
+  it("treats EPIPE (reader closed early, as with head) as a clean exit 0", () => {
+    const stream = new EventEmitter();
+    let exitCode = -1;
+    let exited = false;
+    guardStdout(stream, (code) => (exitCode = code), () => (exited = true));
+    stream.emit("error", Object.assign(new Error("write EPIPE"), { code: "EPIPE" }));
+    expect(exitCode).toBe(0);
+    expect(exited).toBe(true);
+  });
+
+  it("rethrows any other stream error", () => {
+    const stream = new EventEmitter();
+    guardStdout(stream, () => undefined, () => undefined);
+    expect(() => stream.emit("error", Object.assign(new Error("nope"), { code: "EIO" }))).toThrow("nope");
   });
 });

@@ -1,34 +1,19 @@
 /**
- * Pure markdown composition for content writes (slice: write commands). No I/O.
- * See docs/DESIGN.md "update" and "edit" for the exact rules.
+ * Pure no-op rules for content writes (slice: write commands). No I/O and no core import.
+ *
+ * The document level work (joining blocks, block scoped text replacement, loss checks) lives in
+ * src/markdown/convert.ts behind the MarkdownConverter port. This module only decides whether an
+ * append or prepend would change anything, so retries are idempotent (docs/DESIGN.md "update").
  */
 import { notImplemented } from "../errors.js";
 
-export type WriteMode = "append" | "prepend" | "replace";
-
-export interface Composed {
-  markdown: string;
-  /** True when the result equals the existing markdown (an idempotent no-op, exit 0). */
-  unchanged: boolean;
-}
+export type ComposeMode = "append" | "prepend";
 
 /**
- * Joins `addition` to `existing` with one blank line between blocks. Append is a no-op when the
- * trimmed note already ends with the trimmed addition; prepend when it already starts with it.
+ * True when the stored markdown already ends (append) or starts (prepend) with the addition,
+ * comparing trimmed text. `normalizedAddition` must come from `MarkdownConverter.normalize`, so
+ * `* item` is compared as the `- item` core stores.
  */
-export function compose(_existing: string, _addition: string, _mode: WriteMode): Composed {
-  throw notImplemented("compose");
-}
-
-export interface EditResult extends Composed {
-  /** How many occurrences were replaced. */
-  replaced: number;
-}
-
-/**
- * Exact substring replacement on markdown. Zero matches is TEXT_NOT_FOUND; more than one without
- * `all` is AMBIGUOUS_TEXT (with the match count in details).
- */
-export function replaceText(_existing: string, _oldText: string, _newText: string, _all: boolean): EditResult {
-  throw notImplemented("replaceText");
+export function alreadyPresent(_storedMarkdown: string, _normalizedAddition: string, _mode: ComposeMode): boolean {
+  throw notImplemented("alreadyPresent");
 }

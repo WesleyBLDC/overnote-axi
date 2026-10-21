@@ -69,16 +69,27 @@ export function collapseHome(file: string, home: string): string {
 export interface Truncated {
   text: string;
   truncated: boolean;
-  /** Length of the full text in UTF-16 code units, as shown to the agent. */
+  /** Length of the full text in Unicode code points (the unit every count in the output uses). */
   total: number;
 }
 
-/** Never drops the field: keeps a preview and states the full size. */
-export function truncate(text: string, full = false, limit = TRUNCATE_LIMIT): Truncated {
-  const total = text.length;
+/** Code points, so an emoji counts once, matching Overnote's own character count. */
+export function codePoints(text: string): number {
+  let count = 0;
+  for (const _ of text) count++;
+  return count;
+}
+
+/**
+ * Never drops the field: keeps a preview of `limit` code points and states both sizes in the
+ * same unit, labeled with what was measured (`markdown chars` for note bodies).
+ */
+export function truncate(text: string, full = false, limit = TRUNCATE_LIMIT, unit = "markdown chars"): Truncated {
+  const points = Array.from(text);
+  const total = points.length;
   if (full || total <= limit) return { text, truncated: false, total };
-  const head = text.slice(0, limit).replace(/\s+$/, "");
-  return { text: `${head}\n... (truncated, ${total} chars total)`, truncated: true, total };
+  const head = points.slice(0, limit).join("").replace(/\s+$/, "");
+  return { text: `${head}\n... (truncated, showing ${limit} of ${total} ${unit})`, truncated: true, total };
 }
 
 // ---------------------------------------------------------------------------

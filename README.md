@@ -5,14 +5,18 @@ A command line tool that lets coding agents read, search, create, update, organi
 It follows the [AXI](https://github.com/kunchenguid/axi) standard: compact [TOON](https://toonformat.dev) output, definitive empty states, structured errors with stable exit codes, and next-step hints.
 There is no server, no plugin, and no runtime dependency.
 Reads come straight from Overnote's database (read-only), so they are instant and work while Overnote is closed.
-Writes go through the running Overnote app, so the note you have open updates live and nothing races the app.
+Writes go through the running Overnote app, the single writer of its database, so the open editor reloads the note right away.
+Appends and link inserts keep every existing block of a note exactly as stored, and rewrites that markdown cannot hold refuse with `LOSSY_REWRITE`.
+
+One limit to know: if you are typing in the same note when an agent writes to it, your unsaved edit wins, because the editor saves its own content over the change.
+The CLI warns when it writes to the note open in Overnote, and reports `OVERWRITTEN_BY_EDITOR` when the editor saved over its write.
 
 > Status: scaffold.
 > The command surface is specified in [docs/DESIGN.md](docs/DESIGN.md) and is being implemented.
 
 ## Install
 
-Needs macOS, Node 22 or newer, Overnote, and an Overnote checkout next to this one (the build bundles `@overnote/core` from it).
+Needs macOS, Node 22.5 or newer, Overnote, and an Overnote checkout next to this one (the build bundles `@overnote/core` from it).
 
 ```console
 git clone https://github.com/WesleyBLDC/overnote ../overnote && (cd ../overnote && npm install)
@@ -27,7 +31,9 @@ Both paths give an agent the same knowledge; you need only one.
 
 - **Session hook (recommended):** `overnote-axi setup` adds a SessionStart hook to Claude Code, Codex, and OpenCode (whichever you have), so every session starts with your pinned and recent notes in view.
   `overnote-axi setup --uninstall` removes it.
-- **Agent skill:** `overnote-axi setup skill` installs the `overnote-axi` skill, which loads on demand (or as `/overnote-axi`) and costs nothing per session.
+- **Agent skill:** `overnote-axi setup skill` installs the `overnote-axi` skill for Claude Code, which loads on demand (or as `/overnote-axi`) and costs nothing per session.
+  Other agents can add it with `npx skills add WesleyBLDC/axi-overnote --skill overnote-axi` once the repository is public.
+  The skill calls the installed `overnote-axi` binary, so install it first (above).
 
 ## Quick look
 
@@ -53,6 +59,8 @@ npm run check       # all of the above plus the skill staleness check
 ```
 
 `OVERNOTE_DIR` points the build at a different Overnote checkout.
+The build records the Overnote commit it bundled (shown by `overnote-axi status`) and writes `dist/THIRD_PARTY_LICENSES.txt` with the license of every bundled package.
+`npm pack` refuses a checkout with uncommitted core changes unless `OVERNOTE_ALLOW_DIRTY=1`.
 See [AGENTS.md](AGENTS.md) for contributor rules.
 
 ## License

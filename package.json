@@ -25,7 +25,7 @@
     "README.md"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=22.5"
   },
   "os": [
     "darwin"
@@ -35,6 +35,7 @@
     "prebuild": "node scripts/link-overnote.mjs",
     "build": "node scripts/build.mjs",
     "build:skill": "node scripts/build-skill.mjs",
+    "prepack": "OVERNOTE_REQUIRE_CLEAN=1 npm run build && node scripts/build-skill.mjs --check",
     "pretest": "node scripts/link-overnote.mjs",
     "test": "vitest run",
     "test:watch": "vitest",

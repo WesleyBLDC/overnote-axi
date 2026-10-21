@@ -9,7 +9,8 @@ import os from "node:os";
 import { resolvePaths } from "./config/paths.js";
 import { createContext, type Context, type ContextOverrides } from "./context.js";
 import { axiError } from "./errors.js";
-import { connectWriter } from "./helper/notes-writer.js";
+import { connectWriter, probeHelper } from "./helper/notes-writer.js";
+import { PROBE_TIMEOUT_MS } from "./helper/rpc-client.js";
 import { openReader } from "./store/readonly-db.js";
 
 export function createRuntimeContext(overrides: ContextOverrides = {}): Context {
@@ -24,8 +25,9 @@ export function createRuntimeContext(overrides: ContextOverrides = {}): Context 
     openReader,
     connectWriter: (paths, userId) => connectWriter(paths.socket, paths.runtimeDir, userId),
     loadConverter: async () => (await import("./markdown/convert.js")).converter,
+    probeHelper: (paths, userId) => probeHelper(paths.socket, paths.runtimeDir, userId, PROBE_TIMEOUT_MS),
     readStdin,
-    openUrl,
+    openUrl: (url) => openUrl(url, env),
     ...overrides,
   });
 }
@@ -38,9 +40,15 @@ export async function readStdin(): Promise<string | null> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-export function openUrl(url: string): Promise<void> {
+/**
+ * Opens a URL with `/usr/bin/open`, no shell. `OVERNOTE_AXI_OPEN_CMD` (honored only when set)
+ * replaces the opener with an absolute path to another program; test/setup.ts points it at a
+ * recorder, so no test can ever launch the real Overnote against the real notes database.
+ */
+export function openUrl(url: string, env: Readonly<Record<string, string | undefined>> = process.env): Promise<void> {
+  const opener = env.OVERNOTE_AXI_OPEN_CMD || "/usr/bin/open";
   return new Promise((resolve, reject) => {
-    const child = spawn("/usr/bin/open", [url], { stdio: "ignore" });
+    const child = spawn(opener, [url], { stdio: "ignore" });
     child.once("error", () => reject(axiError("Could not open Overnote", "IO_ERROR")));
     child.once("exit", (code) =>
       code === 0 ? resolve() : reject(axiError("Could not open Overnote (is Raycast installed?)", "IO_ERROR")),

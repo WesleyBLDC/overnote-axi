@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseArgs, renderCommandHelp, wantsHelp } from "../../src/args.js";
+import { parseArgs, rebuildInvocation, renderCommandHelp, wantsHelp } from "../../src/args.js";
 import type { CommandSpec } from "../../src/command.js";
 import { AxiError } from "../../src/errors.js";
 
@@ -89,5 +89,34 @@ describe("help", () => {
     expect(help).toContain("--limit <n>");
     expect(help).toContain("--help");
     expect(help).toContain("examples[1]:");
+  });
+});
+
+describe("rebuildInvocation", () => {
+  const spec: CommandSpec = {
+    name: "list",
+    positionals: [],
+    flags: [
+      { name: "limit", type: "number", description: "" },
+      { name: "offset", type: "number", description: "" },
+      { name: "pinned", type: "boolean", description: "" },
+      { name: "sort", type: "string", description: "" },
+      { name: "fields", type: "list", description: "" },
+    ],
+    examples: [],
+    run: async () => ({ output: "" }),
+  };
+
+  it("carries every current flag forward and replaces only the changed one", () => {
+    const args = parseArgs(spec, ["--sort", "accessed", "--fields", "id,title,accessed", "--pinned"]);
+    expect(rebuildInvocation(spec, args, { offset: 50 })).toBe(
+      "overnote-axi list --offset 50 --pinned --sort accessed --fields id,title,accessed",
+    );
+  });
+
+  it("removes a flag set to null and quotes values that need it", () => {
+    const search: CommandSpec = { ...spec, name: "search", positionals: [{ name: "<query>", description: "", required: true }] };
+    const args = parseArgs(search, ['weekly "sync"', "--limit", "5"]);
+    expect(rebuildInvocation(search, args, { limit: null })).toBe('overnote-axi search "weekly \\"sync\\""');
   });
 });

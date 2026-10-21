@@ -16,6 +16,8 @@ export type MethodResult<M extends SocketMethod> = SocketMethods[M]["result"];
 
 export const DEFAULT_TIMEOUT_MS = 3000;
 export const CONNECT_TIMEOUT_MS = 1000;
+/** Connect plus ping budget for the home view and the session hook (a hung socket must not stall a session). */
+export const PROBE_TIMEOUT_MS = 400;
 
 /** The helper answered with an error object (`code` is the protocol code, for example 404). */
 export class RpcError extends Error {

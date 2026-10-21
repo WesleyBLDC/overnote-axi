@@ -5,8 +5,14 @@
  * connection refused or missing socket to HELPER_NOT_RUNNING (hint: `overnote-axi open`),
  * timeouts to HELPER_TIMEOUT, 404 to NOTE_NOT_FOUND, 409 to NOT_PINNED or NOTE_TRASHED by
  * method, anything else to HELPER_ERROR. Never leaks the socket path errno or helper text.
+ * The writer translates uniformly; commands decide what a code means for them (for example
+ * `delete --permanent` catches NOTE_NOT_FOUND from permanentlyDelete and reports `(no-op)`).
+ *
+ * Before connecting, the runtime dir must pass isTrustedRuntimeDir and the socket must pass
+ * isTrustedSocket (src/config/paths.ts); otherwise HELPER_NOT_RUNNING.
  */
 import type {
+  HelperProbe,
   Note,
   NoteContent,
   NoteId,
@@ -25,6 +31,19 @@ import type { RpcTransport } from "./rpc-client.js";
  */
 export async function connectWriter(_socketPath: string, _runtimeDir: string, _uid: number): Promise<NotesWriter> {
   throw notImplemented("connectWriter");
+}
+
+/**
+ * One connect plus `system.ping` within `timeoutMs` total (PROBE_TIMEOUT_MS for home and hooks).
+ * Never throws: a missing or untrusted socket is `stopped`, a silent one is `not-answering`.
+ */
+export async function probeHelper(
+  _socketPath: string,
+  _runtimeDir: string,
+  _uid: number,
+  _timeoutMs: number,
+): Promise<HelperProbe> {
+  throw notImplemented("probeHelper");
 }
 
 export class HelperNotesWriter implements NotesWriter {

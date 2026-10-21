@@ -194,3 +194,31 @@ export function renderCommandHelp(spec: CommandSpec, summary: string): string {
   lines.push(`examples[${spec.examples.length}]:`, ...spec.examples.map((example) => `  ${example}`));
   return lines.join("\n");
 }
+
+/** Quotes a value for a copy pasteable shell command; bare when it needs no quoting. */
+export function shellQuote(value: string): string {
+  if (value !== "" && /^[A-Za-z0-9_@%+=:,./-]+$/.test(value)) return value;
+  return `"${value.replace(/["\\$`]/g, "\\$&")}"`;
+}
+
+/**
+ * Rebuilds the current invocation for a next-step hint (AXI principle 9): the same command,
+ * positionals, and flags, in spec order, with only the flags in `changes` replaced (`null`
+ * removes one). Content flags are never carried forward, so a hint cannot repeat a write.
+ */
+export function rebuildInvocation(
+  spec: CommandSpec,
+  args: ParsedArgs,
+  changes: Readonly<Record<string, FlagValue | null>> = {},
+): string {
+  const parts = [NAME, spec.name, ...args.positionals.map(shellQuote)];
+  for (const flag of spec.flags) {
+    if (flag.name === "content" || flag.name === "content-file") continue;
+    const value = Object.hasOwn(changes, flag.name) ? changes[flag.name] : args.flags[flag.name];
+    if (value === undefined || value === null || value === false) continue;
+    if (value === true) parts.push(`--${flag.name}`);
+    else if (Array.isArray(value)) parts.push(`--${flag.name}`, shellQuote(value.join(",")));
+    else parts.push(`--${flag.name}`, shellQuote(String(value)));
+  }
+  return parts.join(" ");
+}

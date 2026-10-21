@@ -74,6 +74,14 @@ export interface NoteLink {
 
 export type PinDirection = "up" | "down";
 
+/** What a short ping of the helper found (home view, status, session hook). */
+export type HelperProbe =
+  | { state: "running"; version: string; pid: number }
+  /** No socket, refused, or an untrusted runtime dir. */
+  | { state: "stopped" }
+  /** The socket accepted the connection but did not answer within the probe timeout. */
+  | { state: "not-answering" };
+
 /** Every location the CLI reads or connects to (see src/config/paths.ts). */
 export interface OvernotePaths {
   /** The extension's support dir, `OVERNOTE_SUPPORT_DIR` overrides it. */
@@ -112,8 +120,14 @@ export interface NotesReader {
   currentNoteId(): NoteId | null;
   /** Live notes whose markdown links to `id`. */
   backlinks(id: NoteId): NoteSummary[];
-  /** `PRAGMA user_version` of the database. */
+  /** `PRAGMA user_version` of the database (checked against SUPPORTED_SCHEMA_VERSIONS on open). */
   schemaVersion(): number;
+  /**
+   * Runs `read` inside one deferred read transaction (BEGIN ... COMMIT, allowed under
+   * query_only), so every query of one command sees the same WAL snapshot and counts never
+   * disagree with rows. Commands wrap all of their reads in one call.
+   */
+  snapshot<T>(read: (reader: NotesReader) => T): T;
   close(): void;
 }
 
@@ -142,10 +156,53 @@ export interface NotesWriter {
   close(): void;
 }
 
-/** Markdown to stored content exactly as the editor does it (src/markdown/convert.ts). */
+/** The stored fields a conversion needs from an existing note. */
+export type StoredNote = Pick<Note, "rawContent" | "text">;
+
+/**
+ * What a markdown rewrite of a note would lose (see src/markdown/convert.ts):
+ * - `unsupported-content`: nodes or marks the editor preserves but markdown cannot express;
+ * - `collapsed-toggle`: a collapsed toggle list, which markdown always reopens;
+ * - `formatting`: anything else where the markdown round trip changes the stored document.
+ */
+export type RewriteLoss = "collapsed-toggle" | "formatting" | "unsupported-content";
+
+/**
+ * Stored content exactly as the editor produces it (src/markdown/convert.ts, the only full
+ * @overnote/core importer). Existing notes are never rebuilt from their markdown unless
+ * `rewriteLosses` returned an empty list, because markdown is lossy relative to rawContent.
+ */
 export interface MarkdownConverter {
+  /** A brand new note (create) or a full rewrite that rewriteLosses allowed. */
   fromMarkdown(markdown: string): NoteContent;
+  /** The markdown core would store for this text (for no-op checks against stored markdown). */
+  normalize(markdown: string): string;
+  /** Joins the addition's blocks after (append) or before (prepend) the stored document's blocks. */
+  compose(note: StoredNote, addition: string, mode: "append" | "prepend"): NoteContent;
+  /** Every field derived from the stored document, as a write of it unchanged would store them. */
+  current(note: StoredNote): NoteContent;
+  /** Empty when a markdown rewrite keeps the stored document exactly; else what would be lost. */
+  rewriteLosses(note: StoredNote): RewriteLoss[];
+  /**
+   * Exact text replacement against the markdown `read` shows, scoped to the top level blocks
+   * that contain the match (whole document only when the match spans blocks). The caller
+   * refuses with LOSSY_REWRITE when `losses` is not empty, unless `--allow-loss` was given.
+   */
+  edit(note: StoredNote, oldText: string, newText: string, all: boolean): EditOutcome;
 }
+
+export type EditOutcome =
+  | {
+      status: "ok";
+      content: NoteContent;
+      replaced: number;
+      /** `blocks`: only the matching blocks were rewritten; `document`: the whole note was. */
+      scope: "blocks" | "document";
+      /** What rewriting the touched blocks (or the document) through markdown loses. */
+      losses: RewriteLoss[];
+    }
+  | { status: "not-found" }
+  | { status: "ambiguous"; matches: number };
 
 /** A parsed `<note>` argument (see src/store/refs.ts and docs/DESIGN.md "Note references"). */
 export type NoteRef =

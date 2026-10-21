@@ -15,6 +15,13 @@ export const command: CommandSpec = {
     fieldsFlag(LIST_FIELDS, ["id", "title", "deleted"]),
     { name: "empty", type: "boolean", description: "Erase every note in Recently Deleted (needs --permanent)" },
     { name: "permanent", type: "boolean", description: "Confirms that --empty erases notes for good" },
+    {
+      name: "expected-count",
+      type: "number",
+      value: "<n>",
+      min: 0,
+      description: "With --empty, refuse unless Recently Deleted still holds exactly this many notes",
+    },
   ],
   notes: [`Default columns: id,title,deleted (list defaults are ${DEFAULT_LIST_FIELDS.join(",")})`],
   examples: ["overnote-axi trash", "overnote-axi trash --empty --permanent"],

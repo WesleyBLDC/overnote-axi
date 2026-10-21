@@ -39,8 +39,19 @@ describe("render", () => {
 
   it("truncates with the total size", () => {
     const result = truncate("x".repeat(20), false, 10);
-    expect(result).toEqual({ text: "xxxxxxxxxx\n... (truncated, 20 chars total)", truncated: true, total: 20 });
+    expect(result).toEqual({
+      text: "xxxxxxxxxx\n... (truncated, showing 10 of 20 markdown chars)",
+      truncated: true,
+      total: 20,
+    });
     expect(truncate("short", false, 10).truncated).toBe(false);
+  });
+
+  it("counts and cuts in code points, never splitting an emoji", () => {
+    const result = truncate("😀".repeat(4), false, 3);
+    expect(result.total).toBe(4);
+    expect(result.text.startsWith("😀😀😀\n")).toBe(true);
+    expect(result.text).toContain("showing 3 of 4 markdown chars");
   });
 
   it("formats ages and home paths", () => {

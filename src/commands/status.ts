@@ -1,4 +1,7 @@
-/** `status` (slice: read commands). Helper, database, schema and path diagnostics. */
+/**
+ * `status` (slice: read commands). Helper, database, schema and path diagnostics, plus `build`
+ * (VERSION and CORE_REVISION from src/build-info.ts, the Overnote commit core was bundled from).
+ */
 import type { CommandSpec } from "../command.js";
 import { notImplemented } from "../errors.js";
 
