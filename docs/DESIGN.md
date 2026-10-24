@@ -95,7 +95,7 @@ The CLI never creates the runtime dir or the database.
 - The published package contains only `dist/`, the skill, `LICENSE`, and `README.md`; `dependencies` stays empty.
 - The build records which core it bundled: `git rev-parse --short HEAD` of the Overnote checkout plus `-dirty` when `packages/core` has uncommitted changes, compiled into `src/build-info.ts` and shown by `status`.
   `prepack` builds with `OVERNOTE_REQUIRE_CLEAN=1`, which refuses a dirty core unless `OVERNOTE_ALLOW_DIRTY=1`, and runs the skill check, so a stale or missing `dist/` cannot be packed.
-- `bin/overnote-axi.ts` checks `process.versions.node` right after the version fast path: below 22.5 (no `node:sqlite` or `process.getBuiltinModule`) it prints `error: overnote-axi needs Node 22.5 or newer (running <v>)` with `code: VALIDATION_ERROR` and exits 2, except the home view, which prints the same message as a degraded payload and exits 0 so a hook never breaks a session.
+- `bin/overnote-axi.ts` checks `process.versions.node` right after the version fast path: below 22.16 (`node:sqlite` needs a flag before 22.13 and FTS5 is missing before 22.16) it prints `error: overnote-axi needs Node 22.16 or newer (running <v>)` with `code: VALIDATION_ERROR` and exits 2, except the home view, which prints the same message as a degraded payload and exits 0 so a hook never breaks a session.
 
 ## 4. Output conventions
 
