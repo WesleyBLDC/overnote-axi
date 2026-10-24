@@ -245,8 +245,10 @@ export class HelperNotesWriter implements NotesWriter {
     const { count } = await this.call("notes.emptyTrash", {});
     return count;
   }
-  duplicate(id: NoteId): Promise<Note> {
-    return this.call("notes.duplicate", { id });
+  duplicate(id: NoteId, content?: NoteContent): Promise<Note> {
+    if (!content) return this.call("notes.duplicate", { id });
+    const { rawContent, markdown, text, title } = content;
+    return this.call("notes.duplicate", { id, rawContent, markdown, text, title });
   }
   pin(id: NoteId): Promise<Note> {
     return this.call("notes.pin", { id });

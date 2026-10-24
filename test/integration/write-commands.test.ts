@@ -249,6 +249,9 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
       text: "Groceries copy\n\nmilk\neggs\n\nbread",
       pinned: null,
     });
+    expect(stored(copyId).rawContent).toBe(converter.duplicateContent(before, " copy").rawContent);
+    // One notes.duplicate carried the content: no later notes.update moved the copy's updatedAt.
+    expect(stored(copyId).updatedAt).toBe(stored(copyId).createdAt);
     expect(stored(source)).toEqual(before);
     expect(currentId()).toBe(shown);
 

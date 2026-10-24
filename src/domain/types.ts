@@ -153,10 +153,11 @@ export interface NotesWriter {
   permanentlyDelete(id: NoteId): Promise<void>;
   emptyTrash(): Promise<number>;
   /**
-   * An exact copy (`notes.duplicate { id }`). A title suffix is written afterwards with `update`,
-   * because helpers before protocol v3.0 store `titleSuffix` in the title only and v3.0 refuses it.
+   * A copy of the note (`notes.duplicate`): exact with only `id`, or storing `content` verbatim
+   * (built with `MarkdownConverter.duplicateContent`). Content needs helper 0.5.0 (protocol v3.0)
+   * or newer; how older helpers treat it is undocumented, so callers check `ping` first.
    */
-  duplicate(id: NoteId): Promise<Note>;
+  duplicate(id: NoteId, content?: NoteContent): Promise<Note>;
   pin(id: NoteId): Promise<Note>;
   unpin(id: NoteId): Promise<Note>;
   movePinned(id: NoteId, direction: PinDirection): Promise<void>;
