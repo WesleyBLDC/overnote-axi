@@ -52,17 +52,17 @@ describe("openReader", () => {
   });
 
   it("refuses an unsupported schema version with DATABASE_ERROR and details", () => {
-    fixture = createNotesDb({ userVersion: 2 });
+    fixture = createNotesDb({ userVersion: 3 });
     fixture.close();
-    expect(SUPPORTED_SCHEMA_VERSIONS).toEqual([1]);
+    expect(SUPPORTED_SCHEMA_VERSIONS).toEqual([1, 2]);
     try {
       openReader(fixture.database);
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(AxiError);
       expect((error as AxiError).code).toBe("DATABASE_ERROR");
-      expect((error as AxiError).details).toEqual({ schema: 2, supported: "1" });
-      expect((error as AxiError).message).toContain("schema 2");
+      expect((error as AxiError).details).toEqual({ schema: 3, supported: "1,2" });
+      expect((error as AxiError).message).toContain("schema 3");
     }
   });
 
@@ -79,7 +79,7 @@ describe("openReader", () => {
   });
 });
 
-describe("ReadOnlyNotesDb queries", () => {
+describe.each([1, 2] as const)("ReadOnlyNotesDb queries on schema %i", (schema) => {
   let fixture: NotesDbFixture;
   let reader: NotesReader;
   const open = () => {
@@ -88,7 +88,7 @@ describe("ReadOnlyNotesDb queries", () => {
   };
 
   beforeEach(() => {
-    fixture = createNotesDb();
+    fixture = createNotesDb({ schema });
   });
   afterEach(() => {
     reader?.close();

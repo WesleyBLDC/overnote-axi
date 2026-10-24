@@ -18,10 +18,11 @@ import { PROBE_TIMEOUT_MS } from "../../src/helper/rpc-client.js";
 import { openReader } from "../../src/store/readonly-db.js";
 import { resolveNote } from "../../src/store/refs.js";
 import { assertIsolated } from "../fixtures/guard.js";
-import { HELPER_MISSING, helperBinary, startTempHelper, type TempHelper } from "../fixtures/temp-helper.js";
+import { HELPER_MISSING, helperBinary, helperSchemaVersion, startTempHelper, type TempHelper } from "../fixtures/temp-helper.js";
 
 const uid = os.userInfo().uid;
 const available = helperBinary() !== null;
+const schema = available ? helperSchemaVersion(helperBinary()!) : 0;
 
 function content(body: string): NoteContent {
   const lines = body.split("\n");
@@ -74,7 +75,7 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     expect(probe).toEqual({ state: "running", version: expect.any(String), pid: helper.pid });
     expect(await writer.ping()).toEqual({ version: probe.state === "running" ? probe.version : "", pid: helper.pid });
     const status = await writer.status();
-    expect(status).toMatchObject({ pid: helper.pid, schemaVersion: 1, noteCount: 0, backupDir: helper.backupDir });
+    expect(status).toMatchObject({ pid: helper.pid, schemaVersion: schema, noteCount: 0, backupDir: helper.backupDir });
   });
 
   it("writes through the helper and reads the same state back from SQLite", async () => {
@@ -83,7 +84,7 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
 
     const reader = openReader(helper.database)!;
     try {
-      expect(reader.schemaVersion()).toBe(1);
+      expect(reader.schemaVersion()).toBe(schema);
       expect(reader.get(created.id)).toEqual(created);
       expect(reader.counts()).toEqual({ live: 1, pinned: 0, trashed: 0 });
       expect(reader.search("CAFE", { limit: 5 }).items.map((hit) => [hit.note.id, hit.titleMatch])).toEqual([

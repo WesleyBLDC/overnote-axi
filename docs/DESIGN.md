@@ -66,7 +66,8 @@ bin/overnote-axi.ts ── --version fast path, else dynamic import ──▶ sr
   - When an `edit` or `--replace` would lose anything, it fails with `LOSSY_REWRITE`, whose `losses` field names it (`unsupported-content`, `collapsed-toggle`, or `formatting`, such as blank line runs or implicit list numbers); `--allow-loss` writes anyway.
   On the 19 notes of a real database, append kept every block of every note, a whole note rewrite would have changed 6 of them, and a block scoped edit of a word was clean in 104 of 114 cases.
 - **One snapshot per command.** Every command runs all of its reads inside one `reader.snapshot()`, a deferred read transaction, so counts, rows, and the current note come from the same WAL snapshot.
-  On open the reader checks `PRAGMA user_version` against `SUPPORTED_SCHEMA_VERSIONS` (today `[1]`) and refuses any other with `DATABASE_ERROR` and the hint to update overnote-axi.
+  On open the reader checks `PRAGMA user_version` against `SUPPORTED_SCHEMA_VERSIONS` (today `[1, 2]`) and refuses any other with `DATABASE_ERROR` and the hint to pull and rebuild overnote-axi.
+  Schema 2 is purely additive (generated sort columns, paging indexes, and the `notes_fts` table), and every query names its columns, so the same queries run on both; search keeps the folded `LIKE` scan and does not use the FTS index.
 - **Helper not running.** Writes fail with `HELPER_NOT_RUNNING` and the hint `overnote-axi open`, which starts Overnote through its Raycast deeplink.
   When the runtime dir or socket exists but fails the trust check of section 3.2, opening Overnote cannot help, so the code stays `HELPER_NOT_RUNNING` but the message says the socket was refused and the hint is `overnote-axi status`, which names the reason; `home` reports the same state as `refused` with the same hint.
   Reads keep working.
@@ -187,7 +188,7 @@ The session hook runs `home --limit 3 --pinned-limit 3`.
 bin: ~/.npm-global/bin/overnote-axi
 description: "Read, search, create, update, organize, and link Overnote notes with compact TOON output, no plugin and no server."
 overnote:
-  helper: running v0.4.0
+  helper: running v0.5.0
   notes: 42 live
   pinned: 3
   trash: 5
@@ -315,11 +316,11 @@ backlinks[1]{id,title}:
 ```
 helper:
   state: running
-  version: 0.4.0
+  version: 0.5.0
   pid: 4242
 database:
   path: ~/Library/Application Support/com.raycast.macos/extensions/overnote/notes.sqlite
-  schema: 1
+  schema: 2
   notes: 42 live
   trash: 5
 socket: /tmp/overnote-501/helper.sock
@@ -612,7 +613,7 @@ Measured on the built `dist/` with Node 22 or later, relative to the `node -e 0`
 - **Never the real app.** `test/setup.ts` sets `OVERNOTE_AXI_OPEN_CMD=/usr/bin/true`, so no test, and no CLI process a test spawns, runs `/usr/bin/open` with a `raycast://` URL, which would launch the real Overnote helper against the real database.
 - **Shared fakes.** `test/fixtures/fakes.ts` provides `FakeReader`, `FakeWriter`, and `fakeContext()` over one in-memory store, faithful to architecture §5 including conflicts, 404 and 409 errors, and an `afterUpdate` hook that simulates the open editor saving over a write.
 - **Unit** (`test/unit/`): TOON encoder against spec cases, argument parsing, rendering, the registry contract (every command loads a documented spec), note reference parsing, markdown composition, deeplink parsing, hook JSON merging on a temp `HOME`, skill generation.
-- **Read path** (`test/store/`): a fixture builder creates `notes.sqlite` with the schema of architecture §6 in a temp support dir, so ordering, folding, paging, counts, and backlinks are checked without the helper.
+- **Read path** (`test/store/`): a fixture builder creates `notes.sqlite` with the schema of architecture §6 (version 1 or 2, the latter with `notes_fts` and its triggers) in a temp support dir, so ordering, folding, paging, counts, and backlinks are checked without the helper.
 - **Commands** (`test/commands/`): each command runs through `main()` with `fakeContext()`, asserting exact TOON output, empty states, hints (including carried forward flags), error codes, and exit codes.
 - **Integration** (`test/integration/`): `test/fixtures/temp-helper.ts` starts the real `OvernoteHelper` (`OVERNOTE_HELPER_BIN`, default `<overnote>/helper/.build/release/OvernoteHelper`) with `--support-dir`, `--socket`, `--pid-file`, `--editor-dir` all in a fresh short `/tmp/onx-*` dir, `--headless`, and `OVERNOTE_BACKUP_DIR` in the same dir, then drives the CLI end to end: create, read back from SQLite, update with and without a conflict, edit, link, pin and move, delete, recover, empty trash.
   When the binary is missing the suite skips with a clear message.
