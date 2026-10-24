@@ -41,10 +41,37 @@ CREATE INDEX notes_browse_order ON notes (deleted_at, pinned, last_accessed_at D
 CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
 `;
 
+/**
+ * Schema version 2: version 1 plus the additive parts, verbatim from overnote
+ * docs/architecture.md section 6 (generated sort columns, paging indexes, the trigram FTS table
+ * and its three sync triggers).
+ */
+export const SCHEMA_V2 = `
+ALTER TABLE notes ADD COLUMN sort_pin_group    INTEGER GENERATED ALWAYS AS (pinned IS NULL) VIRTUAL;
+ALTER TABLE notes ADD COLUMN sort_pin_key      REAL GENERATED ALWAYS AS (COALESCE(pinned, 0.0)) VIRTUAL;
+ALTER TABLE notes ADD COLUMN sort_updated_neg  INTEGER GENERATED ALWAYS AS (-updated_at) VIRTUAL;
+ALTER TABLE notes ADD COLUMN sort_accessed_neg INTEGER GENERATED ALWAYS AS (-COALESCE(last_accessed_at, -1)) VIRTUAL;
+CREATE INDEX notes_list_page    ON notes (deleted_at, sort_pin_group, sort_pin_key, sort_updated_neg, id);
+CREATE INDEX notes_browse_page  ON notes (deleted_at, sort_pin_group, sort_pin_key, sort_accessed_neg, id);
+CREATE VIRTUAL TABLE notes_fts USING fts5(id UNINDEXED, title_fold, text_fold, tokenize = 'trigram');
+CREATE TRIGGER notes_fts_after_insert AFTER INSERT ON notes BEGIN
+  INSERT INTO notes_fts (id, title_fold, text_fold) VALUES (NEW.id, NEW.title_fold, NEW.text_fold);
+END;
+CREATE TRIGGER notes_fts_after_update AFTER UPDATE OF title_fold, text_fold ON notes BEGIN
+  DELETE FROM notes_fts WHERE id = OLD.id;
+  INSERT INTO notes_fts (id, title_fold, text_fold) VALUES (NEW.id, NEW.title_fold, NEW.text_fold);
+END;
+CREATE TRIGGER notes_fts_after_delete AFTER DELETE ON notes BEGIN
+  DELETE FROM notes_fts WHERE id = OLD.id;
+END;
+`;
+
 export const EMPTY_DOC = JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] });
 
 export interface NotesDbOptions {
-  /** `PRAGMA user_version`; default 1. */
+  /** The schema to build, 1 or 2 (version 2 adds the sort columns, paging indexes and FTS); default 1. */
+  schema?: 1 | 2;
+  /** `PRAGMA user_version`; default is `schema`. Set it alone to build the unsupported case. */
   userVersion?: number;
   /** Leave the schema out (an empty SQLite file that is not an Overnote database). */
   noSchema?: boolean;
@@ -69,8 +96,12 @@ export class NotesDbFixture {
     const { DatabaseSync } = loadSqlite();
     this.db = new DatabaseSync(this.database);
     this.db.exec("PRAGMA journal_mode = WAL");
-    if (!options.noSchema) this.db.exec(SCHEMA_V1);
-    this.db.exec(`PRAGMA user_version = ${Math.trunc(options.userVersion ?? 1)}`);
+    const schema = options.schema ?? 1;
+    if (!options.noSchema) {
+      this.db.exec(SCHEMA_V1);
+      if (schema === 2) this.db.exec(SCHEMA_V2);
+    }
+    this.db.exec(`PRAGMA user_version = ${Math.trunc(options.userVersion ?? schema)}`);
   }
 
   /** Environment that points the CLI at this support dir. */
