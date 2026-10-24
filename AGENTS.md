@@ -18,3 +18,5 @@
 - Prose (docs, comments, messages, help text): never use dashes as punctuation (hyphens inside compound words are fine), and put each sentence of a long Markdown file on its own line.
 - `npm run check` must pass before a commit; treat lint errors, failing tests, and flaky tests as defects.
 - Clean room: reuse code only from the public Overnote repository.
+
+A lead session reads `lead.toml` and the rules it names; workers can ignore it.
