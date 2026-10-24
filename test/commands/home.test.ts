@@ -8,11 +8,14 @@ import type { HelperProbe } from "../../src/domain/types.js";
 import { axiError } from "../../src/errors.js";
 import { DESCRIPTION } from "../../src/meta.js";
 import { isoDate } from "../../src/output/render.js";
+import { TESTED_SCHEMA_VERSION, updateHint } from "../../src/store/readonly-db.js";
 import { fakeContext, type FakeContext } from "../fixtures/fakes.js";
 import { assertIsolated } from "../fixtures/guard.js";
 import { lines, runCli } from "../fixtures/run-cli.js";
 
 const HEADER = ["bin: /opt/overnote-axi/dist/overnote-axi.js", `description: "${DESCRIPTION}"`];
+/** The fake bin path does not exist, so the update hint is the copied install form. */
+const UPDATE_HINT = updateHint("/opt/overnote-axi/dist/overnote-axi.js");
 const HINTS = [
   "help[3]:",
   "  overnote-axi read <id>",
@@ -150,9 +153,10 @@ describe("home", () => {
   it("reports an unreadable database without failing the session", async () => {
     const fake = fakeContext({
       openReader: () => {
-        throw axiError("the notes database uses schema 9, which this overnote-axi does not support", "DATABASE_ERROR", [
-          "Update overnote-axi (npm install -g . in its repository), then retry",
-        ], { schema: 9, supported: "1" });
+        throw axiError("the notes database (schema 9) lacks columns this overnote-axi reads", "DATABASE_ERROR", [
+          "overnote-axi status",
+          UPDATE_HINT,
+        ], { schema: 9, missing: "notes.text_fold" });
       },
     });
     const { code, out } = await home(fake);
@@ -161,14 +165,29 @@ describe("home", () => {
       lines(
         ...HEADER,
         "overnote:",
-        '  error: "the notes database uses schema 9, which this overnote-axi does not support"',
+        "  error: the notes database (schema 9) lacks columns this overnote-axi reads",
         "  code: DATABASE_ERROR",
         "  schema: 9",
-        '  supported: "1"',
-        "help[1]:",
-        "  Update overnote-axi (npm install -g . in its repository), then retry",
+        "  missing: notes.text_fold",
+        "help[2]:",
+        "  overnote-axi status",
+        `  ${UPDATE_HINT}`,
       ),
     );
+  });
+
+  it("notes a schema newer than tested in one line and keeps reading", async () => {
+    const fake = fakeContext();
+    fake.fakes.reader.schema = TESTED_SCHEMA_VERSION + 1;
+    fake.fakes.store.add({ body: "Note" });
+    const { code, out } = await home(fake);
+    expect(code).toBe(0);
+    expect(out).toContain(
+      `  trash: 0\n  schema: "${TESTED_SCHEMA_VERSION + 1}, newer than this overnote-axi was tested with (overnote-axi status)"\ncurrent: `,
+    );
+    const tested = fakeContext();
+    tested.fakes.reader.schema = TESTED_SCHEMA_VERSION;
+    expect((await home(tested)).out).not.toContain("schema");
   });
 
   it.each<[HelperProbe, string]>([
@@ -225,8 +244,11 @@ describe("home", () => {
     const { store } = fake.fakes;
     for (let i = 1; i <= 9; i++) store.add({ body: `Pinned ${i}`, pinned: i * 1000 });
     for (let i = 1; i <= 20; i++) store.add({ body: `Other ${i}` });
+    // A schema newer than tested adds its one line; the budget still holds.
+    fake.fakes.reader.schema = TESTED_SCHEMA_VERSION + 1;
     const { code, out } = await home(fake, "--limit", "3", "--pinned-limit", "3");
     expect(code).toBe(0);
+    expect(out).toContain("  schema: ");
     expect(out.trimEnd().split("\n").length).toBeLessThanOrEqual(24);
     expect(out).toContain("pinned[3]{id,title,updated}:");
     expect(out).toContain("recent[3]{id,title,updated}:");
