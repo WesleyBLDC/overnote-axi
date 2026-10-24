@@ -112,10 +112,10 @@ describe("read commands over SQLite", () => {
 
   it("degrades home and status on a newer schema, and fails reads with DATABASE_ERROR", async () => {
     db.cleanup();
-    db = createNotesDb({ userVersion: 2 });
+    db = createNotesDb({ userVersion: 3 });
     const home = await run("home");
     expect(home.code).toBe(0);
-    expect(home.out).toContain("  code: DATABASE_ERROR\n  schema: 2\n");
+    expect(home.out).toContain("  code: DATABASE_ERROR\n  schema: 3\n");
     const status = await run("status");
     expect(status.code).toBe(0);
     expect(status.out).toContain("  state: unreadable\n");

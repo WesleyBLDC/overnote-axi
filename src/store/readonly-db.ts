@@ -8,7 +8,7 @@
  * escaped LIKE. Loading node:sqlite mutes only its ExperimentalWarning.
  *
  * - On open, `PRAGMA user_version` must be in SUPPORTED_SCHEMA_VERSIONS; anything else is
- *   DATABASE_ERROR with the hint to update overnote-axi, so queries never run on unknown columns.
+ *   DATABASE_ERROR with the hint to rebuild overnote-axi, so queries never run on unknown columns.
  * - `snapshot()` wraps one command's reads in a deferred read transaction (one WAL snapshot).
  * - `backlinks()` uses LIKE only as a prefilter (`%toggle-notes?context=%<id>%`, with `%`, `_`
  *   and `\` escaped); it scans the table (no index helps a leading wildcard), then confirms each
@@ -34,8 +34,12 @@ import type {
 } from "../domain/types.js";
 import { AxiError, axiError } from "../errors.js";
 
-/** Schema versions this build understands (overnote docs/architecture.md section 6). */
-export const SUPPORTED_SCHEMA_VERSIONS: readonly number[] = [1];
+/**
+ * Schema versions this build understands (overnote docs/architecture.md section 6). Version 2 only
+ * adds generated sort columns, paging indexes and the `notes_fts` table, so every query here,
+ * which names its columns, runs unchanged on both.
+ */
+export const SUPPORTED_SCHEMA_VERSIONS: readonly number[] = [1, 2];
 
 /** Characters of plain text around a search match (SearchHit.snippet). */
 export const SNIPPET_LENGTH = 80;
@@ -109,7 +113,10 @@ function unsupportedSchema(version: number): AxiError {
   return axiError(
     `the notes database uses schema ${version}, which this overnote-axi does not support`,
     "DATABASE_ERROR",
-    ["Update overnote-axi (npm install -g . in its repository), then retry", "overnote-axi --version"],
+    [
+      "overnote-axi status",
+      "Pull and rebuild overnote-axi (npm run build in its repository; the global install links to its dist/), then retry",
+    ],
     { schema: version, supported: SUPPORTED_SCHEMA_VERSIONS.join(",") },
   );
 }
