@@ -20,14 +20,13 @@
  * - `update --replace` rewrites everything, so callers check `rewriteLosses` first and refuse
  *   with LOSSY_REWRITE (unless `--allow-loss`) when the round trip would change stored content;
  * - `duplicate --suffix` inserts the suffix into the loaded document's title line
- *   (`duplicateContent`), so the rest of the copy stays byte for byte.
+ *   (core's `duplicateContent`), so the rest of the copy stays byte for byte.
  */
 import type { JSONContent } from "@overnote/core";
-import * as core from "@overnote/core";
 import {
   buildNoteContent,
   docToMarkdown,
-  getNoteSchema,
+  duplicateContent,
   loadDoc,
   markdownToDoc,
   noteContentFromMarkdown,
@@ -116,87 +115,6 @@ function blockCounts(note: StoredNote): Map<string, number> {
   return counts;
 }
 
-type DuplicateContent = (note: StoredNote, titleSuffix: string) => NoteContent;
-
-/**
- * Core's `duplicateContent` (Overnote protocol v3.0) when the bundled core has it. Read off an
- * opaque view of the namespace, so a core without it builds without an undefined import.
- */
-const coreExports: Readonly<Record<string, unknown>> = core;
-const coreDuplicateContent = coreExports["duplicateContent"] as DuplicateContent | undefined;
-
-function isTextblock(node: JSONContent): boolean {
-  return getNoteSchema().nodes[node.type ?? ""]?.isTextblock === true;
-}
-
-/** Whether a textblock contributes to the plain text: some text or a hard break. */
-function hasPlainText(block: JSONContent): boolean {
-  return (block.content ?? []).some((child) => (child.type === "text" && !!child.text) || child.type === "hardBreak");
-}
-
-/**
- * The first textblock with plain text in document order (the one the title comes from, since
- * deriveTitle skips empty blocks), else the first textblock, else null.
- */
-function titleTextblock(doc: JSONContent): JSONContent | null {
-  let first: JSONContent | null = null;
-  const visit = (node: JSONContent): JSONContent | null => {
-    if (isTextblock(node)) {
-      first ??= node;
-      return hasPlainText(node) ? node : null;
-    }
-    for (const child of node.content ?? []) {
-      const found = visit(child);
-      if (found) return found;
-    }
-    return null;
-  };
-  return visit(doc) ?? first;
-}
-
-/**
- * Inserts `suffix` as unmarked text into a textblock's first line (which ends at a hard break or
- * a newline inside its text), right after its last non space character, or at the block's start
- * without its leading spaces when that line is blank. Mutates `block`.
- */
-function insertIntoFirstLine(block: JSONContent, suffix: string): void {
-  const children = block.content ?? [];
-  let at: { index: number; offset: number } | null = null;
-  for (const [index, child] of children.entries()) {
-    if (child.type === "hardBreak") break;
-    if (child.type !== "text") continue;
-    const text = child.text ?? "";
-    const newline = text.indexOf("\n");
-    const kept = (newline === -1 ? text : text.slice(0, newline)).trimEnd().length;
-    if (kept > 0) at = { index, offset: kept };
-    if (newline !== -1) break;
-  }
-  if (at === null) {
-    // A blank title line starts with the suffix, without its leading space.
-    const text = suffix.trimStart();
-    if (text !== "") block.content = [{ type: "text", text }, ...children];
-    return;
-  }
-  const inserted: JSONContent = { type: "text", text: suffix };
-  const target = children[at.index]!;
-  const text = target.text ?? "";
-  const pieces = [{ ...target, text: text.slice(0, at.offset) }, inserted];
-  if (at.offset < text.length) pieces.push({ ...target, text: text.slice(at.offset) });
-  block.content = [...children.slice(0, at.index), ...pieces, ...children.slice(at.index + 1)];
-}
-
-/**
- * The same rule as core's `duplicateContent`, for a bundled core that predates it: the suffix
- * goes at the end of the line the title comes from and every field is derived from the result,
- * so the title, rawContent, markdown, and text agree and a later save keeps the suffixed title.
- */
-export function suffixedContent(note: StoredNote, suffix: string): NoteContent {
-  const doc = structuredClone(loadStored(note));
-  const block = suffix === "" ? null : titleTextblock(doc);
-  if (block) insertIntoFirstLine(block, suffix);
-  return buildNoteContent(doc);
-}
-
 export const converter: MarkdownConverter = {
   fromMarkdown(markdown: string): NoteContent {
     return noteContentFromMarkdown(markdown);
@@ -231,7 +149,7 @@ export const converter: MarkdownConverter = {
   },
 
   duplicateContent(note: StoredNote, suffix: string): NoteContent {
-    return (coreDuplicateContent ?? suffixedContent)(note, suffix);
+    return duplicateContent(note, suffix);
   },
 
   edit(note: StoredNote, oldText: string, newText: string, all: boolean): EditOutcome {
