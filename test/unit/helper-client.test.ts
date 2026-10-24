@@ -184,6 +184,7 @@ describe("helper socket client", () => {
     await writer.recover("A");
     await writer.permanentlyDelete("A");
     await writer.duplicate("A");
+    await writer.duplicate("A", content);
     await writer.pin("A");
     await writer.unpin("A");
     await writer.movePinned("A", "up");
@@ -199,6 +200,7 @@ describe("helper socket client", () => {
       { method: "notes.recover", params: { id: "A" } },
       { method: "notes.permanentlyDelete", params: { id: "A" } },
       { method: "notes.duplicate", params: { id: "A" } },
+      { method: "notes.duplicate", params: { id: "A", ...content } },
       { method: "notes.pin", params: { id: "A" } },
       { method: "notes.unpin", params: { id: "A" } },
       { method: "notes.movePinnedUp", params: { id: "A" } },

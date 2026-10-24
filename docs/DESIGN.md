@@ -62,7 +62,7 @@ bin/overnote-axi.ts ── --version fast path, else dynamic import ──▶ sr
   - **`edit`**: block scoped; only top level blocks whose own markdown contains `--old` are serialized, edited, and parsed back, and only they are checked for losses; when the whole note holds more matches than its blocks do (a match spans blocks), the matches are counted on the whole note and the edit rewrites the whole document.
   - **`update --replace`**: a full rewrite, preceded by `rewriteLosses`, which compares the stored document with its markdown round trip.
   - **`duplicate --suffix`**: `duplicateContent` inserts the suffix as unmarked text into the line the title comes from (the first textblock with text, after the last non space character of its first line, before any hard break; at the start, without leading spaces, when that line is blank) and derives every field from the result, so the rest of the copy survives exactly.
-    It is core's `duplicateContent` only (Overnote protocol v3.0 or newer core); there is no fallback copy of the rule.
+    It needs a core that exports `duplicateContent` (Overnote protocol v3.0 or newer), the same rule Search Notes' Duplicate sends, and the content goes to the helper in the `notes.duplicate` call itself (section 6.13).
   - When an `edit` or `--replace` would lose anything, it fails with `LOSSY_REWRITE`, whose `losses` field names it (`unsupported-content`, `collapsed-toggle`, or `formatting`, such as blank line runs or implicit list numbers); `--allow-loss` writes anyway.
   On the 19 notes of a real database, append kept every block of every note, a whole note rewrite would have changed 6 of them, and a block scoped edit of a word was clean in 104 of 114 cases.
 - **One snapshot per command.** Every command runs all of its reads inside one `reader.snapshot()`, a deferred read transaction, so counts, rows, and the current note come from the same WAL snapshot.
@@ -93,7 +93,7 @@ The CLI never creates the runtime dir or the database.
 - `scripts/build.mjs` runs esbuild with `splitting: true`: the entry `dist/overnote-axi.js` is a few hundred bytes, every command is its own chunk, and `src/markdown/convert.ts` (the only importer of the full core entry, reached only through a dynamic import) pulls Tiptap, ProseMirror, and markdown-it into one chunk of about 500 KB that read commands never load.
 - Light helpers (`fold`, `displayTitle`) come from `@overnote/core/text`, which has no Tiptap import.
 - The published package contains only `dist/`, the skill, `LICENSE`, and `README.md`; `dependencies` stays empty.
-- The build refuses a core that does not export `duplicateContent` (`scripts/overnote-dir.mjs` checks `packages/core/src/index.ts` and says which Overnote checkout to update), so `src/markdown/convert.ts` imports it directly.
+- The build refuses a core that does not export `duplicateContent` (`scripts/overnote-dir.mjs` reads `packages/core/src/index.ts` with comments removed and accepts a declared export, an `export { ... }` list, or an `export * from` a module that exports it, then says which Overnote checkout to update), so `src/markdown/convert.ts` imports it directly.
 - The build records which core it bundled: `git rev-parse --short HEAD` of the Overnote checkout plus `-dirty` when `packages/core` has uncommitted changes, compiled into `src/build-info.ts` and shown by `status`.
   `prepack` builds with `OVERNOTE_REQUIRE_CLEAN=1`, which refuses a dirty core unless `OVERNOTE_ALLOW_DIRTY=1`, and runs the skill check, so a stale or missing `dist/` cannot be packed.
 - `bin/overnote-axi.ts` checks `process.versions.node` right after the version fast path: below 22.5 (no `node:sqlite` or `process.getBuiltinModule`) it prints `error: overnote-axi needs Node 22.5 or newer (running <v>)` with `code: VALIDATION_ERROR` and exits 2, except the home view, which prints the same message as a degraded payload and exits 0 so a hook never breaks a session.
@@ -436,13 +436,15 @@ pinned: 01JAB3K9QW Standup (position 4 of 4)
 
 ### 6.13 `duplicate <note>`
 
-An exact copy with `notes.duplicate { id }`; prints the new note like `create`, and like `create` (without `--open`) keeps `current` on the note it named.
+One `notes.duplicate` call makes the copy; prints the new note like `create`, and like `create` (without `--open`) keeps `current` on the note it named.
 
-- The CLI never sends `titleSuffix`: helpers before protocol v3.0 stored it in the title only, so the copy's first line kept the old title and its next save dropped the suffix, and v3.0 refuses it with `-32602`.
-- With `--suffix <text>` (an empty one is no suffix), it builds the copy's content with `converter.duplicateContent` (section 3.1) and writes it with `notes.update`, `expectedUpdatedAt` set to the copy's `updatedAt`, after restoring `current`; this works on every helper version.
+- Without `--suffix` (or with an empty one) it sends `notes.duplicate { id }`, an exact copy, on every helper version.
+- With `--suffix <text>` it builds the copy's content with `converter.duplicateContent` (section 3.1) from the source as the fresh `notes.get` returned it, and sends it in the same call, `notes.duplicate { id } & NoteContent`, which the helper stores verbatim (architecture §5), as Search Notes' Duplicate does.
+  No copy ever exists without its suffix, and no `notes.update` follows.
   The confirmation shows the suffixed title.
-- The copy exists before the suffix is written, so a failed or conflicting suffix write names the copy (`id` field, `overnote-axi read <id>` hint) and says not to duplicate again; a conflict is `STALE_WRITE`.
-- Without `--suffix` it is the single `notes.duplicate` call.
+- Content on `notes.duplicate` needs helper 0.5.0 (protocol v3.0) or newer, and how older helpers treat it is undocumented, so `--suffix` first reads the version from `system.ping`.
+  An older or unparsable version fails before any write with `HELPER_ERROR`, a message naming 0.5.0 and the running version and saying to update Overnote, the hint `overnote-axi open`, and `overnote-axi duplicate <id>` for an exact copy.
+- The CLI never sends `titleSuffix`: helpers before protocol v3.0 stored it in the title only, so the copy's first line kept the old title and its next save dropped the suffix, and v3.0 refuses it with `-32602`.
 
 ### 6.14 `delete <note>`
 
@@ -510,6 +512,7 @@ See section 8.
 - **Shared write flow.** `update`, `edit`, and `link --into` all run `writeContent` (`src/commands/write-flow.ts`): resolve, fresh `notes.get`, `deletedAt` check, `--expected-updated-at` check, plan, loss check, `notes.update` with `expectedUpdatedAt`, then the open note warning and verify.
   The organize commands (`pin`, `unpin`, `move`, `duplicate`, `recover`) resolve from SQLite and then decide on the note as `notes.get` returns it (`resolveFresh` in `src/commands/note-ops.ts`).
 - **Idempotent mutations.** Pin, unpin, delete, recover, append, prepend, link, and a repeated `edit` report no-ops instead of errors, so retries are safe.
+- **One call per new note.** `create` and `duplicate` each make their note in one helper call carrying its final content (`duplicate --suffix` sends it with `notes.duplicate`, section 6.13), so no half made note needs a recovery path and a timeout means only "look before retrying".
 - **`current` stays put.** `create` and `duplicate` restore the previous current note when an older helper moved it to the new note (section 6.8), so `update current` never lands in the agent's own note while the panel shows another.
 - **What `--permanent` unlocks.** Only two operations erase data irreversibly: `delete --permanent` and `trash --empty --permanent`.
   Neither has a default, a prompt, or an environment variable that enables it; the flag must be on the command line.

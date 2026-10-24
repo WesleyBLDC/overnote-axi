@@ -9,6 +9,7 @@
  * - `permanentlyDelete` on a live note: no-op. `pin` on a trashed note: NOTE_TRASHED (409).
  *   `movePinned` on an unpinned note: NOT_PINNED (409); at either end: no-op.
  * - `update` with a stale `expectedUpdatedAt`: `{ status: "conflict", note }`, nothing written.
+ * - `duplicate` with content stores that content verbatim as the copy, else the source's.
  *
  * Tests steer edge cases with `failNext(method, error)`, `helperRunning = false`, and
  * `afterUpdate` (for example to simulate the open editor saving over a write).
@@ -61,6 +62,8 @@ export class FakeStore {
    */
   newNotesBecomeCurrent = true;
   helperRunning = true;
+  /** What `ping`, `status` and the probe report; 0.5.0 and later take content on `duplicate`. */
+  helperVersion = "0.3.0";
   clock = 1_792_000_000_000;
   private counter = 0;
   private failures = new Map<string, AxiError>();
@@ -261,13 +264,13 @@ export class FakeWriter implements NotesWriter {
 
   async ping(): Promise<{ version: string; pid: number }> {
     this.enter("ping");
-    return { version: "0.3.0", pid: 4242 };
+    return { version: this.store.helperVersion, pid: 4242 };
   }
 
   async status(): Promise<SystemStatus> {
     this.enter("status");
     return {
-      version: "0.3.0",
+      version: this.store.helperVersion,
       pid: 4242,
       schemaVersion: 1,
       noteCount: this.store.live().length,
@@ -338,16 +341,11 @@ export class FakeWriter implements NotesWriter {
     return count;
   }
 
-  async duplicate(id: NoteId): Promise<Note> {
-    this.enter("duplicate", id);
+  async duplicate(id: NoteId, content?: NoteContent): Promise<Note> {
+    this.enter("duplicate", ...(content ? [id, content] : [id]));
     const source = this.find(id);
-    const copy = this.store.add({
-      rawContent: source.rawContent,
-      markdown: source.markdown,
-      text: source.text,
-      title: source.title,
-      caretPosition: 0,
-    });
+    const { rawContent, markdown, text, title } = content ?? source;
+    const copy = this.store.add({ rawContent, markdown, text, title, caretPosition: 0 });
     if (this.store.newNotesBecomeCurrent) this.store.currentNoteId = copy.id;
     return { ...copy };
   }
@@ -407,7 +405,7 @@ export function createFakes(): Fakes {
   const reader = new FakeReader(store);
   const writer = new FakeWriter(store);
   const probe = async (): Promise<HelperProbe> =>
-    store.helperRunning ? { state: "running", version: "0.3.0", pid: 4242 } : { state: "stopped" };
+    store.helperRunning ? { state: "running", version: store.helperVersion, pid: 4242 } : { state: "stopped" };
   return { store, reader, writer, probe };
 }
 
