@@ -18,6 +18,7 @@ import { AxiError } from "../errors.js";
 import { EMPTY_HOME_HINTS, HOME_HINTS } from "../guidance.js";
 import { DESCRIPTION } from "../meta.js";
 import { collapseHome, countNoun, joinBlocks, renderDetail, renderHelp, renderRows } from "../output/render.js";
+import { newerSchema } from "../store/readonly-db.js";
 import { resolveNote } from "../store/refs.js";
 import { listColumns } from "./note-columns.js";
 
@@ -82,18 +83,21 @@ interface HomeData {
   currentIsFallback: boolean;
   pinned: NoteSummary[];
   recent: NoteSummary[];
+  /** The database schema (`schema` shows only when it is newer than this build was tested with). */
+  schema: number;
 }
 
 function readHome(reader: NotesReader, recentLimit: number, pinnedLimit: number): HomeData {
   return reader.snapshot((snap) => {
     const counts = snap.counts();
-    if (counts.live === 0) return { counts, current: null, currentIsFallback: false, pinned: [], recent: [] };
+    const schema = snap.schemaVersion();
+    if (counts.live === 0) return { counts, current: null, currentIsFallback: false, pinned: [], recent: [], schema };
     const current = resolveNote(snap, "current", { allowTrashed: false });
     const currentIsFallback = current.id !== snap.currentNoteId();
     const pinned = pinnedLimit > 0 ? snap.list({ limit: pinnedLimit, pinnedOnly: true }).items : [];
     // Pinned notes sort first, so skipping them leaves the unpinned notes, newest first.
     const recent = recentLimit > 0 ? snap.list({ limit: recentLimit, offset: counts.pinned }).items : [];
-    return { counts, current, currentIsFallback, pinned, recent };
+    return { counts, current, currentIsFallback, pinned, recent, schema };
   });
 }
 
@@ -102,7 +106,7 @@ function header(context: Context): string {
   return renderDetail({ bin: collapseHome(context.binPath, context.home), description: DESCRIPTION });
 }
 
-/** A database that exists but cannot be read (for example a newer schema): reported, never fatal. */
+/** A database that exists but cannot be read (for example one without a required column): reported, never fatal. */
 function readProblem(context: Context, error: AxiError): string {
   return joinBlocks([
     header(context),
@@ -159,7 +163,7 @@ export const command: CommandSpec = {
       );
     }
 
-    const { counts, current, currentIsFallback, pinned, recent } = data;
+    const { counts, current, currentIsFallback, pinned, recent, schema } = data;
     // A helper that cannot take writes leads the hints, so the next write does not fail first.
     const hints = [...helperHint(view)];
     for (const hint of counts.live === 0 ? EMPTY_HOME_HINTS : HOME_HINTS) if (!hints.includes(hint)) hints.push(hint);
@@ -170,7 +174,14 @@ export const command: CommandSpec = {
       joinBlocks([
         header(context),
         renderDetail({
-          overnote: { helper, notes: `${counts.live} live`, pinned: counts.pinned, trash: counts.trashed },
+          overnote: {
+            helper,
+            notes: `${counts.live} live`,
+            pinned: counts.pinned,
+            trash: counts.trashed,
+            // One line, so the session hook stays in budget; status prints the update command.
+            schema: newerSchema(schema) ? `${schema}, newer than this overnote-axi was tested with (overnote-axi status)` : undefined,
+          },
           current: current
             ? `${current.id} ${displayTitle(current)}${currentIsFallback ? " (newest; none open)" : ""}`
             : undefined,

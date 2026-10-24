@@ -14,7 +14,7 @@ import { lines, runCli } from "../fixtures/run-cli.js";
 import { HELPER_MISSING, helperBinary, helperSchemaVersion, startTempHelper, type TempHelper } from "../fixtures/temp-helper.js";
 
 const available = helperBinary() !== null;
-const schema = available ? helperSchemaVersion(helperBinary()!) : 0;
+const schema = () => helperSchemaVersion(helperBinary()!);
 
 function content(body: string): NoteContent {
   const blocks = body.split("\n");
@@ -84,7 +84,7 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     expect(code).toBe(0);
     expect(out).toContain(`helper:\n  state: running\n  version: `);
     expect(out).toContain(`  pid: ${helper.pid}\n`);
-    expect(out).toContain(`database:\n  path: ${helper.database}\n  schema: ${schema}\n`);
+    expect(out).toContain(`database:\n  path: ${helper.database}\n  schema: ${schema()}\n`);
     expect(out).toContain(`socket: ${helper.socket}\n`);
     expect(out).toMatch(/backups:\n {2}count: \d+\n {2}latest: \S+\n/);
   });

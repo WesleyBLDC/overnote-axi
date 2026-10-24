@@ -15,7 +15,7 @@ import { HELPER_MISSING, helperBinary, helperSchemaVersion, startTempHelper, typ
 import { buildBinary, runBinary, type BuiltBinary, type RunOptions, type RunResult } from "./binary.js";
 
 const available = helperBinary() !== null;
-const schema = available ? helperSchemaVersion(helperBinary()!) : 0;
+const schema = () => helperSchemaVersion(helperBinary()!);
 const title = "the built binary against the real helper";
 
 /** The first full id a block printed under `label`. */
@@ -179,7 +179,7 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     expect(await ok(["open"])).toBe("opened: Overnote\n");
     expect(await ok(["open", "current"])).toMatch(/^opened: [0-9A-Z]{26} .+\n$/);
     const status = await ok(["status"]);
-    expect(status).toContain(`database:\n  path: ${helper.database}\n  schema: ${schema}\n`);
+    expect(status).toContain(`database:\n  path: ${helper.database}\n  schema: ${schema()}\n`);
     expect(status).toContain(`socket: ${helper.socket}\n`);
     expect(status).toMatch(/\nbackups:\n {2}count: \d+\n/);
     expect(status).toMatch(/\nbuild:\n {2}version: \S+\n {2}core: [0-9a-f]+(-dirty)?\n/);

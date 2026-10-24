@@ -39,11 +39,25 @@ export function helperBinary(env: Readonly<Record<string, string | undefined>> =
   }
 }
 
-/** The schema version the helper reports with `--schema-version` (what its database gets). */
+const schemaVersions = new Map<string, number>();
+
+/**
+ * The schema version the helper reports with `--schema-version` (what its database gets), asked
+ * once per binary. Call it inside a test, never at module scope: a helper without the flag then
+ * fails the tests that compare schemas, with this message, instead of the whole suite at import.
+ */
 export function helperSchemaVersion(bin: string): number {
-  const out = execFileSync(bin, ["--schema-version"], { encoding: "utf8", timeout: 5000 }).trim();
+  const known = schemaVersions.get(bin);
+  if (known !== undefined) return known;
+  let out: string;
+  try {
+    out = execFileSync(bin, ["--schema-version"], { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    throw new Error(`${bin} --schema-version failed; rebuild the helper from a current Overnote checkout`);
+  }
   const version = Number(out);
-  if (!Number.isInteger(version)) throw new Error(`${bin} --schema-version printed ${JSON.stringify(out)}`);
+  if (out === "" || !Number.isInteger(version)) throw new Error(`${bin} --schema-version printed ${JSON.stringify(out)}`);
+  schemaVersions.set(bin, version);
   return version;
 }
 

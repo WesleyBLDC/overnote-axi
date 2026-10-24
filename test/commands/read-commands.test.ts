@@ -110,18 +110,36 @@ describe("read commands over SQLite", () => {
     expect(out).toContain("helper:\n  state: stopped\n");
   });
 
-  it("degrades home and status on a newer schema, and fails reads with DATABASE_ERROR", async () => {
+  it("keeps reading a newer schema that has every column, and says so in home and status", async () => {
     db.cleanup();
-    db = createNotesDb({ userVersion: 3 });
+    db = createNotesDb({ schema: 2, userVersion: 3 });
+    const note = db.add({ body: "Still readable" });
     const home = await run("home");
     expect(home.code).toBe(0);
-    expect(home.out).toContain("  code: DATABASE_ERROR\n  schema: 3\n");
+    expect(home.out).toContain('  schema: "3, newer than this overnote-axi was tested with (overnote-axi status)"\n');
+    expect(home.out).toContain(`current: ${note.id} Still readable (newest; none open)\n`);
+    const status = await run("status");
+    expect(status.code).toBe(0);
+    expect(status.out).toContain("  schema: 3\n  note: ");
+    const list = await run("list");
+    expect(list.code).toBe(0);
+    expect(list.out).toContain(note.id);
+  });
+
+  it("degrades home and status on a newer schema without a column, and fails reads naming it", async () => {
+    db.cleanup();
+    db = createNotesDb({ userVersion: 3 });
+    db.exec("ALTER TABLE notes DROP COLUMN text_fold");
+    const home = await run("home");
+    expect(home.code).toBe(0);
+    expect(home.out).toContain("  code: DATABASE_ERROR\n  schema: 3\n  missing: notes.text_fold\n");
     const status = await run("status");
     expect(status.code).toBe(0);
     expect(status.out).toContain("  state: unreadable\n");
     const list = await run("list");
     expect(list.code).toBe(1);
     expect(list.out).toContain("code: DATABASE_ERROR");
+    expect(list.out).not.toContain("SQLITE");
   });
 
   it("degrades home on a file that is not an Overnote database", async () => {

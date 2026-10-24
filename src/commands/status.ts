@@ -16,6 +16,7 @@ import type { Context } from "../context.js";
 import type { NoteCounts, OvernotePaths, SystemStatus } from "../domain/types.js";
 import { AxiError } from "../errors.js";
 import { collapseHome, isoDate, joinBlocks, renderDetail, renderHelp } from "../output/render.js";
+import { newerSchema, TESTED_SCHEMA_VERSION, updateHint } from "../store/readonly-db.js";
 import { VERSION } from "../version.js";
 
 type HelperReport =
@@ -74,10 +75,19 @@ function helperSection(report: HelperReport): Record<string, unknown> {
   }
 }
 
+const NEWER_SCHEMA_NOTE = `newer than ${TESTED_SCHEMA_VERSION}, the newest this overnote-axi was tested with; reads work, but update it`;
+
 function databaseSection(report: DatabaseReport, file: string): Record<string, unknown> {
   switch (report.state) {
     case "ok":
-      return { path: file, schema: report.schema, notes: `${report.counts.live} live`, trash: report.counts.trashed };
+      return {
+        path: file,
+        schema: report.schema,
+        // A newer schema that keeps every column the reader uses still reads; say so once here.
+        note: newerSchema(report.schema) ? NEWER_SCHEMA_NOTE : undefined,
+        notes: `${report.counts.live} live`,
+        trash: report.counts.trashed,
+      };
     case "missing":
       return { path: file, state: "missing" };
     case "unreadable":
@@ -94,9 +104,10 @@ function backupsSection(status: SystemStatus): Record<string, unknown> {
   };
 }
 
-function hintsFor(helper: HelperReport, database: DatabaseReport): string[] {
+function hintsFor(helper: HelperReport, database: DatabaseReport, binPath: string): string[] {
   const hints = new Set<string>();
   if (helper.state !== "running") hints.add("overnote-axi open");
+  if (database.state === "ok" && newerSchema(database.schema)) hints.add(updateHint(binPath));
   if (helper.state === "error") for (const line of helper.error.suggestions) hints.add(line);
   if (database.state === "missing") {
     hints.add("overnote-axi open");
@@ -127,7 +138,7 @@ export const command: CommandSpec = {
           backups: helper.state === "running" ? backupsSection(helper.status) : undefined,
           build: { version: VERSION, core: CORE_REVISION },
         }),
-        renderHelp(hintsFor(helper, database)),
+        renderHelp(hintsFor(helper, database, context.binPath)),
       ]),
     );
   },

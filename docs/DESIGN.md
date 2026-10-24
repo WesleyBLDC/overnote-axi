@@ -66,7 +66,12 @@ bin/overnote-axi.ts ── --version fast path, else dynamic import ──▶ sr
   - When an `edit` or `--replace` would lose anything, it fails with `LOSSY_REWRITE`, whose `losses` field names it (`unsupported-content`, `collapsed-toggle`, or `formatting`, such as blank line runs or implicit list numbers); `--allow-loss` writes anyway.
   On the 19 notes of a real database, append kept every block of every note, a whole note rewrite would have changed 6 of them, and a block scoped edit of a word was clean in 104 of 114 cases.
 - **One snapshot per command.** Every command runs all of its reads inside one `reader.snapshot()`, a deferred read transaction, so counts, rows, and the current note come from the same WAL snapshot.
-  On open the reader checks `PRAGMA user_version` against `SUPPORTED_SCHEMA_VERSIONS` (today `[1, 2]`) and refuses any other with `DATABASE_ERROR` and the hint to pull and rebuild overnote-axi.
+- **Schema check: columns, not versions.** On open the reader accepts any `PRAGMA user_version` of 1 or newer whose tables carry every column in `REQUIRED_COLUMNS` (`src/store/readonly-db.ts`, beside the queries), probed with `pragma_table_xinfo`, which also lists generated columns.
+  The list holds every column a query selects, filters, or sorts on: all 13 `notes` columns of schema 1 (the summary columns, `title_fold` and `text_fold` for search, `TITLE_MATCH` and `findByTitle`, `markdown` for backlinks, `raw_content` and `caret_position` for `read`) and `settings.key` and `settings.value` for `currentNoteId`; a query that starts using a column adds it there.
+  A missing column (or table) is `DATABASE_ERROR` whose `missing` field names each as `<table>.<column>`, and `user_version` 0 is refused as not an Overnote schema; no query runs in either case, and no SQLite message reaches the output.
+  An exact version allowlist turned Overnote's additive schema 2 into a read outage until the CLI was rebuilt; Overnote's own read-only fallback checks no version either.
+  `TESTED_SCHEMA_VERSION` (today 2) is the newest schema the tests cover: a newer one reads normally, and `status` and `home` say to update (sections 6.1 and 6.6).
+  The update hint is one pasteable line from `updateHint(binPath)`: when the running script's package root (two levels above its real path) is a git checkout, which a linked `npm install -g .` runs from, it is `git -C <root> pull --ff-only && npm --prefix <root> run build`; for a copied install it rebuilds and reinstalls from the checkout.
   Schema 2 is purely additive (generated sort columns, paging indexes, and the `notes_fts` table), and every query names its columns, so the same queries run on both; search keeps the folded `LIKE` scan and does not use the FTS index.
 - **Helper not running.** Writes fail with `HELPER_NOT_RUNNING` and the hint `overnote-axi open`, which starts Overnote through its Raycast deeplink.
   When the runtime dir or socket exists but fails the trust check of section 3.2, opening Overnote cannot help, so the code stays `HELPER_NOT_RUNNING` but the message says the socket was refused and the hint is `overnote-axi status`, which names the reason; `home` reports the same state as `refused` with the same hint.
@@ -212,7 +217,8 @@ help[4]:
   When the helper cannot take writes, its fix leads the hints (`overnote-axi open` for stopped, `overnote-axi status` otherwise), so an agent does not try a write first.
   The probe (`context.probeHelper()`) has one 400 ms budget for connect plus ping (`PROBE_TIMEOUT_MS`) and never throws, so a hung helper cannot stall a session start.
 - No database: `overnote: no notes database yet` plus the `overnote-axi open` hint, exit 0 (the hook must never fail a session).
-- A database that exists but cannot be read (a newer schema, a file that is not an Overnote database) is reported the same way: the `overnote` block holds the error's `error`, `code`, and detail fields, its hints follow, and the exit code is still 0.
+- A database that exists but cannot be read (a schema without a column the reader needs, a file that is not an Overnote database) is reported the same way: the `overnote` block holds the error's `error`, `code`, and detail fields, its hints follow, and the exit code is still 0.
+- A schema newer than `TESTED_SCHEMA_VERSION` that keeps every required column reads normally and adds one line to the `overnote` block, `schema: "<n>, newer than this overnote-axi was tested with (overnote-axi status)"`, so the session hook payload stays within its 24 lines and `status` carries the update command.
 - No notes: `notes: 0 live` and only the `create` hint, after the helper's fix when it cannot take writes.
 - `current` resolves like the `current` reference (section 5) and prints on one line, `current: <id> <title>`; when no live note is open in Overnote it is the newest live note and the line ends in `(newest; none open)`.
 - A block whose limit is 0 is left out.
@@ -333,7 +339,8 @@ backups:
 - A `build` block shows the CLI version and the Overnote commit its core came from (`core: 4784d66`, or `4784d66-dirty`).
 - It is a diagnostic, so it always exits 0 and reports each problem as fields plus the hint that fixes it:
   - the helper is asked once, over the writer's single connection (`system.status`); `HELPER_NOT_RUNNING` shows `state: stopped` with a `reason` (no runtime dir, runtime dir refused, no socket, socket refused), `HELPER_TIMEOUT` shows `state: not answering`, and any other code shows `state: error` with it;
-  - a missing database shows `state: missing`, and an unreadable one shows `state: unreadable` with the error's fields.
+  - a missing database shows `state: missing`, and an unreadable one shows `state: unreadable` with the error's fields (`schema` and `missing` when it lacks a required column);
+  - a schema newer than `TESTED_SCHEMA_VERSION` that still reads keeps `schema: <n>`, adds `note: "newer than <tested>, the newest this overnote-axi was tested with; reads work, but update it"`, and hints the update command of section 3.1.
 
 ### 6.7 `open [note]`
 
@@ -614,6 +621,7 @@ Measured on the built `dist/` with Node 22 or later, relative to the `node -e 0`
 - **Shared fakes.** `test/fixtures/fakes.ts` provides `FakeReader`, `FakeWriter`, and `fakeContext()` over one in-memory store, faithful to architecture §5 including conflicts, 404 and 409 errors, and an `afterUpdate` hook that simulates the open editor saving over a write.
 - **Unit** (`test/unit/`): TOON encoder against spec cases, argument parsing, rendering, the registry contract (every command loads a documented spec), note reference parsing, markdown composition, deeplink parsing, hook JSON merging on a temp `HOME`, skill generation.
 - **Read path** (`test/store/`): a fixture builder creates `notes.sqlite` with the schema of architecture §6 (version 1 or 2, the latter with `notes_fts` and its triggers) in a temp support dir, so ordering, folding, paging, counts, and backlinks are checked without the helper.
+  A higher `userVersion` on those tables, or a dropped column or table, covers the schema check of section 3.1.
 - **Commands** (`test/commands/`): each command runs through `main()` with `fakeContext()`, asserting exact TOON output, empty states, hints (including carried forward flags), error codes, and exit codes.
 - **Integration** (`test/integration/`): `test/fixtures/temp-helper.ts` starts the real `OvernoteHelper` (`OVERNOTE_HELPER_BIN`, default `<overnote>/helper/.build/release/OvernoteHelper`) with `--support-dir`, `--socket`, `--pid-file`, `--editor-dir` all in a fresh short `/tmp/onx-*` dir, `--headless`, and `OVERNOTE_BACKUP_DIR` in the same dir, then drives the CLI end to end: create, read back from SQLite, update with and without a conflict, edit, link, pin and move, delete, recover, empty trash.
   When the binary is missing the suite skips with a clear message.
