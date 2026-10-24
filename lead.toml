@@ -1,0 +1,7 @@
+# Settings for a lead session (the lead kit's /lead); every key is in the kit's config.md.
+name = "overnote-axi"
+repo = "WesleyBLDC/overnote-axi"
+github_account = "WesleyBLDC"
+done = "npm run check"
+# No CI runs on this repository: babysit waits for nothing and the done command's evidence stands in.
+ci = false
