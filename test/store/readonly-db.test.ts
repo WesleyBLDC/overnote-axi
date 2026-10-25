@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -17,6 +17,9 @@ import {
 } from "../../src/store/readonly-db.js";
 import { assertIsolated } from "../fixtures/guard.js";
 import { createNotesDb, type NotesDbFixture } from "../fixtures/notes-db.js";
+
+const COPIED_HINT =
+  "This install is a copy: in the overnote-axi checkout it was built from, run git pull --ff-only, npm run build, then npm install -g . (see the README)";
 
 function code(run: () => unknown): string | undefined {
   try {
@@ -108,10 +111,7 @@ describe("openReader", () => {
     expect(error.code).toBe("DATABASE_ERROR");
     expect(error.message).toBe("the notes database (schema 3) lacks columns this overnote-axi reads");
     expect(error.details).toEqual({ schema: 3, missing: "notes.text_fold" });
-    expect(error.suggestions).toEqual([
-      "overnote-axi status",
-      "cd <overnote-axi checkout> && git pull --ff-only && npm run build && npm install -g .",
-    ]);
+    expect(error.suggestions).toEqual(["overnote-axi status", COPIED_HINT]);
   });
 
   it("names every column of a missing table, and gives no update hint for a tested schema", () => {
@@ -124,24 +124,31 @@ describe("openReader", () => {
   });
 
   it("requires every column the queries use: the schema 1 columns, which later schemas keep", () => {
-    expect(REQUIRED_COLUMNS).toEqual({
-      notes: [
-        "id",
-        "title",
-        "text",
-        "markdown",
-        "raw_content",
-        "title_fold",
-        "text_fold",
-        "pinned",
-        "created_at",
-        "updated_at",
-        "deleted_at",
-        "last_accessed_at",
-        "caret_position",
-      ],
-      settings: ["key", "value"],
-    });
+    expect(REQUIRED_COLUMNS.notes).toHaveLength(13);
+    expect(REQUIRED_COLUMNS.settings).toEqual(["key", "value"]);
+  });
+
+  it("ties REQUIRED_COLUMNS to the module's SQL: every column it names is required, and every required column is named", () => {
+    fixture = createNotesDb({ schema: 2 });
+    fixture.close();
+    const reader = openReader(fixture.database)!;
+    const source = readFileSync(new URL("../../src/store/readonly-db.ts", import.meta.url), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    const words = new Set(source.match(/[A-Za-z_][A-Za-z0-9_]*/g));
+    for (const [table, required] of Object.entries(REQUIRED_COLUMNS)) {
+      const actual = rawDb(reader).prepare("SELECT name FROM pragma_table_xinfo(?)").all(table) as { name: string }[];
+      const named = actual.map((row) => row.name).filter((name) => words.has(name));
+      expect(
+        named.filter((name) => !required.includes(name)),
+        `${table} columns used by SQL but not required`,
+      ).toEqual([]);
+      expect(
+        required.filter((name) => !words.has(name)),
+        `${table} required columns no SQL names`,
+      ).toEqual([]);
+    }
+    reader.close();
   });
 
   it("still refuses user_version 0", () => {
@@ -151,7 +158,8 @@ describe("openReader", () => {
     expect(error.code).toBe("DATABASE_ERROR");
     expect(error.details).toEqual({ schema: 0 });
     expect(error.message).toContain("schema 0");
-    expect(error.suggestions).toEqual(["overnote-axi status", "overnote-axi open"]);
+    expect(error.message).toContain("not an Overnote database yet");
+    expect(error.suggestions).toEqual(["overnote-axi status"]);
   });
 
   it("refuses a file that is not an Overnote database or not SQLite at all", () => {
@@ -454,10 +462,24 @@ describe("updateHint", () => {
     expect(updateHint(plain.bin)).toBe(`git -C ${plain.pkg} pull --ff-only && npm --prefix ${plain.pkg} run build`);
   });
 
-  it("rebuilds and reinstalls from the checkout for a copied install or an unknown path", () => {
+  it("describes the rebuild in prose for a copied install or an unknown path, with no shell metacharacters", () => {
     const { bin } = install("copied", false);
-    const copied = "cd <overnote-axi checkout> && git pull --ff-only && npm run build && npm install -g .";
-    expect(updateHint(bin)).toBe(copied);
-    expect(updateHint(path.join(root, "missing.js"))).toBe(copied);
+    expect(updateHint(bin)).toBe(COPIED_HINT);
+    expect(updateHint(path.join(root, "missing.js"))).toBe(COPIED_HINT);
+    for (const hint of [updateHint(bin), updateHint(install("linked", true).bin), updateHint("")]) {
+      expect(hint).not.toMatch(/[<>]/);
+    }
+  });
+
+  it("collapses the home directory to ~ outside the quotes so the line still expands", () => {
+    const home = path.join(root, "me");
+    mkdirSync(home);
+    const plain = install("me/overnote-axi", true);
+    expect(updateHint(plain.bin, home)).toBe("git -C ~/overnote-axi pull --ff-only && npm --prefix ~/overnote-axi run build");
+    const spaced = install("me/my checkout", true);
+    expect(updateHint(spaced.bin, home)).toBe('git -C ~/"my checkout" pull --ff-only && npm --prefix ~/"my checkout" run build');
+    expect(updateHint(plain.bin, path.join(root, "other"))).toBe(
+      `git -C ${plain.pkg} pull --ff-only && npm --prefix ${plain.pkg} run build`,
+    );
   });
 });
