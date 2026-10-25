@@ -5,3 +5,9 @@ github_account = "WesleyBLDC"
 done = "npm run check"
 # No CI runs on this repository: babysit waits for nothing and the done command's evidence stands in.
 ci = false
+# The last step of npm run check prints this line only when everything before it passed, so accept can require it.
+pass_line = "SKILL.md is up to date"
+# Refuses a branch whose commits carry a Co-Authored-By trailer.
+after_accept = ["~/.lead/overnote-axi/tools/no-coauthor"]
+# Read only: shows the clean Overnote checkout that builds bundle core from.
+state = ["git -C /Users/wes/code/GitHub/overnote-install log -1 --oneline"]
