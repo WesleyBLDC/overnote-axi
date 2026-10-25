@@ -11,3 +11,6 @@ pass_line = "SKILL.md is up to date"
 after_accept = ["~/.lead/overnote-axi/tools/no-coauthor"]
 # Read only: shows the clean Overnote checkout that builds bundle core from.
 state = ["git -C /Users/wes/code/GitHub/overnote-install log -1 --oneline"]
+# Long leash: Wesley approved the lead merging overnote-axi PRs (2026-10-24); land stays "pr".
+leash = "long"
+approval = "Wesley, 2026-10-24: the lead may merge an overnote-axi PR it opened once verdict covers its head from a tester's report saved by verdict --agent, its review lists no open blocker, wave-check shows no conflict, and npm run check passed on it merged with main. Kit PRs on ac-wesley still need Wesley's yes each time. Wesley reviews merges after the fact and may revert any of them."
