@@ -1,4 +1,5 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -6,7 +7,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { markdownNoteLink, noteDeeplink } from "../../src/domain/deeplink.js";
 import type { NotesReader } from "../../src/domain/types.js";
 import { AxiError } from "../../src/errors.js";
-import { openReader, ReadOnlyNotesDb, snippetAround, SUPPORTED_SCHEMA_VERSIONS } from "../../src/store/readonly-db.js";
+import {
+  openReader,
+  ReadOnlyNotesDb,
+  REQUIRED_COLUMNS,
+  snippetAround,
+  TESTED_SCHEMA_VERSION,
+  updateHint,
+} from "../../src/store/readonly-db.js";
+import { assertIsolated } from "../fixtures/guard.js";
 import { createNotesDb, type NotesDbFixture } from "../fixtures/notes-db.js";
 
 function code(run: () => unknown): string | undefined {
@@ -16,6 +25,22 @@ function code(run: () => unknown): string | undefined {
   } catch (error) {
     return error instanceof AxiError ? error.code : "raw";
   }
+}
+
+/** The AxiError openReader throws on `file`. */
+function openError(file: string, binPath?: string): AxiError {
+  try {
+    openReader(file, binPath)?.close();
+  } catch (error) {
+    expect(error).toBeInstanceOf(AxiError);
+    return error as AxiError;
+  }
+  return expect.unreachable("openReader did not throw");
+}
+
+/** The raw read-only connection behind a reader, for checking the fixture's schema. */
+function rawDb(reader: NotesReader): { prepare(sql: string): { all(...params: string[]): unknown[] } } {
+  return (reader as unknown as { db: ReturnType<typeof rawDb> }).db;
 }
 
 describe("openReader", () => {
@@ -51,19 +76,82 @@ describe("openReader", () => {
     reader.close();
   });
 
-  it("refuses an unsupported schema version with DATABASE_ERROR and details", () => {
-    fixture = createNotesDb({ userVersion: 3 });
+  it("builds a real schema 2 fixture: user_version 2 and the notes_fts table", () => {
+    fixture = createNotesDb({ schema: 2 });
     fixture.close();
-    expect(SUPPORTED_SCHEMA_VERSIONS).toEqual([1, 2]);
-    try {
-      openReader(fixture.database);
-      expect.unreachable();
-    } catch (error) {
-      expect(error).toBeInstanceOf(AxiError);
-      expect((error as AxiError).code).toBe("DATABASE_ERROR");
-      expect((error as AxiError).details).toEqual({ schema: 3, supported: "1,2" });
-      expect((error as AxiError).message).toContain("schema 3");
-    }
+    const reader = openReader(fixture.database)!;
+    expect(reader.schemaVersion()).toBe(2);
+    const fts = rawDb(reader).prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").all("notes_fts");
+    expect(fts).toHaveLength(1);
+    reader.close();
+  });
+
+  it("opens and lists a newer schema that keeps every required column", () => {
+    expect(TESTED_SCHEMA_VERSION).toBe(2);
+    fixture = createNotesDb({ schema: 2, userVersion: 3 });
+    const note = fixture.add({ body: "Newer schema" });
+    fixture.setCurrent(note.id);
+    fixture.close();
+    const reader = openReader(fixture.database)!;
+    expect(reader.schemaVersion()).toBe(3);
+    expect(reader.list({ limit: 10 }).items.map((item) => item.id)).toEqual([note.id]);
+    expect(reader.search("newer", { limit: 10 }).total).toBe(1);
+    expect(reader.currentNoteId()).toBe(note.id);
+    reader.close();
+  });
+
+  it("refuses a newer schema without a required column, naming it, with the update hint", () => {
+    fixture = createNotesDb({ userVersion: 3 });
+    fixture.exec("ALTER TABLE notes DROP COLUMN text_fold");
+    fixture.close();
+    const error = openError(fixture.database, "/nonexistent/overnote-axi/dist/overnote-axi.js");
+    expect(error.code).toBe("DATABASE_ERROR");
+    expect(error.message).toBe("the notes database (schema 3) lacks columns this overnote-axi reads");
+    expect(error.details).toEqual({ schema: 3, missing: "notes.text_fold" });
+    expect(error.suggestions).toEqual([
+      "overnote-axi status",
+      "cd <overnote-axi checkout> && git pull --ff-only && npm run build && npm install -g .",
+    ]);
+  });
+
+  it("names every column of a missing table, and gives no update hint for a tested schema", () => {
+    fixture = createNotesDb({ schema: 2 });
+    fixture.exec("DROP TABLE settings");
+    fixture.close();
+    const error = openError(fixture.database);
+    expect(error.details).toEqual({ schema: 2, missing: "settings.key,settings.value" });
+    expect(error.suggestions).toEqual(["overnote-axi status"]);
+  });
+
+  it("requires every column the queries use: the schema 1 columns, which later schemas keep", () => {
+    expect(REQUIRED_COLUMNS).toEqual({
+      notes: [
+        "id",
+        "title",
+        "text",
+        "markdown",
+        "raw_content",
+        "title_fold",
+        "text_fold",
+        "pinned",
+        "created_at",
+        "updated_at",
+        "deleted_at",
+        "last_accessed_at",
+        "caret_position",
+      ],
+      settings: ["key", "value"],
+    });
+  });
+
+  it("still refuses user_version 0", () => {
+    fixture = createNotesDb({ userVersion: 0 });
+    fixture.close();
+    const error = openError(fixture.database);
+    expect(error.code).toBe("DATABASE_ERROR");
+    expect(error.details).toEqual({ schema: 0 });
+    expect(error.message).toContain("schema 0");
+    expect(error.suggestions).toEqual(["overnote-axi status", "overnote-axi open"]);
   });
 
   it("refuses a file that is not an Overnote database or not SQLite at all", () => {
@@ -337,5 +425,39 @@ describe("snippetAround", () => {
   it("maps folded positions back to the original text", () => {
     expect(snippetAround("ﬁne Crème brûlée", "brulee")).toBe("ﬁne Crème brûlée");
     expect(snippetAround("nothing", "zzz")).toBe("");
+  });
+});
+
+describe("updateHint", () => {
+  let root: string;
+  beforeEach(() => {
+    root = realpathSync(mkdtempSync(path.join(os.tmpdir(), "overnote-axi-hint-")));
+    assertIsolated(root, "update hint dir");
+  });
+  afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+  /** A package at `<root>/<name>` with a built dist/overnote-axi.js, and a bin link to it. */
+  function install(name: string, checkout: boolean): { pkg: string; bin: string } {
+    const pkg = path.join(root, name);
+    mkdirSync(path.join(pkg, "dist"), { recursive: true });
+    writeFileSync(path.join(pkg, "dist", "overnote-axi.js"), "#!/usr/bin/env node\n");
+    if (checkout) mkdirSync(path.join(pkg, ".git"));
+    const bin = path.join(root, `${name}-bin`);
+    symlinkSync(path.join(pkg, "dist", "overnote-axi.js"), bin);
+    return { pkg, bin };
+  }
+
+  it("pulls and rebuilds the checkout a linked install runs from, quoting its path", () => {
+    const { pkg, bin } = install("my checkout", true);
+    expect(updateHint(bin)).toBe(`git -C "${pkg}" pull --ff-only && npm --prefix "${pkg}" run build`);
+    const plain = install("overnote-axi", true);
+    expect(updateHint(plain.bin)).toBe(`git -C ${plain.pkg} pull --ff-only && npm --prefix ${plain.pkg} run build`);
+  });
+
+  it("rebuilds and reinstalls from the checkout for a copied install or an unknown path", () => {
+    const { bin } = install("copied", false);
+    const copied = "cd <overnote-axi checkout> && git pull --ff-only && npm run build && npm install -g .";
+    expect(updateHint(bin)).toBe(copied);
+    expect(updateHint(path.join(root, "missing.js"))).toBe(copied);
   });
 });

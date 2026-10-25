@@ -71,7 +71,7 @@ export const EMPTY_DOC = JSON.stringify({ type: "doc", content: [{ type: "paragr
 export interface NotesDbOptions {
   /** The schema to build, 1 or 2 (version 2 adds the sort columns, paging indexes and FTS); default 1. */
   schema?: 1 | 2;
-  /** `PRAGMA user_version`; default is `schema`. Set it alone to build the unsupported case. */
+  /** `PRAGMA user_version`; default is `schema`. Set it higher to build a newer schema, or 0 for the refused case. */
   userVersion?: number;
   /** Leave the schema out (an empty SQLite file that is not an Overnote database). */
   noSchema?: boolean;

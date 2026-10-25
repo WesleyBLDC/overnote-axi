@@ -9,6 +9,7 @@ import { stoppedReason } from "../../src/commands/status.js";
 import type { OvernotePaths, SystemStatus } from "../../src/domain/types.js";
 import { axiError } from "../../src/errors.js";
 import { isoDate } from "../../src/output/render.js";
+import { TESTED_SCHEMA_VERSION, updateHint } from "../../src/store/readonly-db.js";
 import { VERSION } from "../../src/version.js";
 import { fakeContext, type FakeContext } from "../fixtures/fakes.js";
 import { assertIsolated } from "../fixtures/guard.js";
@@ -21,6 +22,8 @@ function status(fake: FakeContext) {
 const BUILD = ["build:", `  version: ${VERSION}`, `  core: ${CORE_REVISION}`];
 const DATABASE = "/tmp/overnote-axi-fake/support/notes.sqlite";
 const SOCKET = "/tmp/overnote-axi-fake/run/helper.sock";
+/** The fake bin path does not exist, so the update hint is the copied install form. */
+const UPDATE_HINT = updateHint("/opt/overnote-axi/dist/overnote-axi.js");
 
 describe("status", () => {
   it("reports a running helper, the database, the socket, backups and the build", async () => {
@@ -115,9 +118,10 @@ describe("status", () => {
   it("reports an unreadable database with its details", async () => {
     const fake = fakeContext({
       openReader: () => {
-        throw axiError("The notes database uses schema 9, which this overnote-axi does not support", "DATABASE_ERROR", [
-          "Update overnote-axi (npm install -g . in its repository), then retry",
-        ], { schema: 9, supported: "1" });
+        throw axiError("the notes database (schema 9) lacks columns this overnote-axi reads", "DATABASE_ERROR", [
+          "overnote-axi status",
+          UPDATE_HINT,
+        ], { schema: 9, missing: "notes.text_fold" });
       },
     });
     const { code, out } = await status(fake);
@@ -127,13 +131,39 @@ describe("status", () => {
         "database:",
         `  path: ${DATABASE}`,
         "  state: unreadable",
-        '  error: "The notes database uses schema 9, which this overnote-axi does not support"',
+        "  error: the notes database (schema 9) lacks columns this overnote-axi reads",
         "  code: DATABASE_ERROR",
         "  schema: 9",
-        '  supported: "1"',
+        "  missing: notes.text_fold",
       ].join("\n"),
     );
-    expect(out.endsWith("help[1]:\n  Update overnote-axi (npm install -g . in its repository), then retry\n")).toBe(true);
+    expect(out.endsWith(`help[1]:\n  ${UPDATE_HINT}\n`)).toBe(true);
+  });
+
+  it("notes a schema newer than tested, keeps reading, and hints the update command", async () => {
+    const fake = fakeContext();
+    fake.fakes.reader.schema = TESTED_SCHEMA_VERSION + 1;
+    fake.fakes.store.add({ body: "One" });
+    const { code, out } = await status(fake);
+    expect(code).toBe(0);
+    expect(out).toContain(
+      [
+        "database:",
+        `  path: ${DATABASE}`,
+        `  schema: ${TESTED_SCHEMA_VERSION + 1}`,
+        `  note: "newer than ${TESTED_SCHEMA_VERSION}, the newest this overnote-axi was tested with; reads work, but update it"`,
+        "  notes: 1 live",
+      ].join("\n"),
+    );
+    expect(out.endsWith(`help[1]:\n  ${UPDATE_HINT}\n`)).toBe(true);
+  });
+
+  it("adds no note or hint for the tested schema", async () => {
+    const fake = fakeContext();
+    fake.fakes.reader.schema = TESTED_SCHEMA_VERSION;
+    const { out } = await status(fake);
+    expect(out).toContain(`  schema: ${TESTED_SCHEMA_VERSION}\n  notes: 0 live\n`);
+    expect(out).not.toContain("help[");
   });
 
   it("collapses the home directory in paths", async () => {

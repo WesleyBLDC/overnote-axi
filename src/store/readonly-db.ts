@@ -7,17 +7,22 @@
  * filters fold with @overnote/core/text `fold` and match `title_fold` / `text_fold` with an
  * escaped LIKE. Loading node:sqlite mutes only its ExperimentalWarning.
  *
- * - On open, `PRAGMA user_version` must be in SUPPORTED_SCHEMA_VERSIONS; anything else is
- *   DATABASE_ERROR with the hint to rebuild overnote-axi, so queries never run on unknown columns.
+ * - On open, `PRAGMA user_version` must be 1 or newer and the tables must carry every column in
+ *   REQUIRED_COLUMNS (probed with `pragma_table_xinfo`); otherwise DATABASE_ERROR names the
+ *   missing columns, so queries never run on columns that are gone. A newer schema that keeps
+ *   them opens: Overnote's schema changes so far are additive, and its own read-only fallback
+ *   checks no version either.
  * - `snapshot()` wraps one command's reads in a deferred read transaction (one WAL snapshot).
  * - `backlinks()` uses LIKE only as a prefilter (`%toggle-notes?context=%<id>%`, with `%`, `_`
  *   and `\` escaped); it scans the table (no index helps a leading wildcard), then confirms each
  *   candidate with extractNoteLinks, which decodes the context, so differently encoded links match.
  */
-import { existsSync, statSync } from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
+import path from "node:path";
 
 import { displayTitle, fold } from "@overnote/core/text";
 
+import { shellQuote } from "../args.js";
 import { backlinkLikePattern, escapeLike, extractNoteLinks } from "../domain/deeplink.js";
 import type {
   ListOrder,
@@ -35,11 +40,15 @@ import type {
 import { AxiError, axiError } from "../errors.js";
 
 /**
- * Schema versions this build understands (overnote docs/architecture.md section 6). Version 2 only
- * adds generated sort columns, paging indexes and the `notes_fts` table, so every query here,
- * which names its columns, runs unchanged on both.
+ * The newest schema version this build was tested with (overnote docs/architecture.md section 6).
+ * A newer one still opens when it keeps REQUIRED_COLUMNS; `status` and `home` then say to update.
  */
-export const SUPPORTED_SCHEMA_VERSIONS: readonly number[] = [1, 2];
+export const TESTED_SCHEMA_VERSION = 2;
+
+/** Whether `schema` is newer than the newest one this build was tested with. */
+export function newerSchema(schema: number): boolean {
+  return schema > TESTED_SCHEMA_VERSION;
+}
 
 /** Characters of plain text around a search match (SearchHit.snippet). */
 export const SNIPPET_LENGTH = 80;
@@ -81,6 +90,31 @@ const TITLE_MATCH = `CASE
     ELSE 'untitled' LIKE ?1 ESCAPE '\\'
   END`;
 
+/**
+ * Every column the queries in this file select, filter, or sort on, per table: SUMMARY_COLUMNS,
+ * TITLE_MATCH and search (`title_fold`, `text_fold`), get (`markdown`, `raw_content`,
+ * `caret_position`), findByTitle, backlinks (`markdown`), and currentNoteId (`settings`).
+ * Add a column here when a query starts using it.
+ */
+export const REQUIRED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
+  notes: [
+    "id",
+    "title",
+    "text",
+    "markdown",
+    "raw_content",
+    "title_fold",
+    "text_fold",
+    "pinned",
+    "created_at",
+    "updated_at",
+    "deleted_at",
+    "last_accessed_at",
+    "caret_position",
+  ],
+  settings: ["key", "value"],
+};
+
 let sqliteModule: SqliteModule | null = null;
 
 /**
@@ -109,23 +143,66 @@ function databaseError(message = "could not read the Overnote database"): AxiErr
   return axiError(message, "DATABASE_ERROR", ["overnote-axi status"]);
 }
 
+/**
+ * The command that updates this overnote-axi, as one line to paste. `binPath` is the running
+ * script; two levels up from its real path is the package root. A root with `.git` is a checkout,
+ * which a linked install (`npm install -g .`, npm's default for a folder) runs from, so pulling
+ * and rebuilding it updates the global command. Otherwise the install is a copy, rebuilt in the
+ * checkout and installed again.
+ */
+export function updateHint(binPath: string): string {
+  let root: string | null;
+  try {
+    root = path.dirname(path.dirname(realpathSync(binPath)));
+  } catch {
+    root = null;
+  }
+  if (root && existsSync(path.join(root, ".git"))) {
+    const quoted = shellQuote(root);
+    return `git -C ${quoted} pull --ff-only && npm --prefix ${quoted} run build`;
+  }
+  return "cd <overnote-axi checkout> && git pull --ff-only && npm run build && npm install -g .";
+}
+
 function unsupportedSchema(version: number): AxiError {
   return axiError(
-    `the notes database uses schema ${version}, which this overnote-axi does not support`,
+    `the notes database reports schema ${version}, and Overnote schemas start at 1`,
     "DATABASE_ERROR",
-    [
-      "overnote-axi status",
-      "Pull and rebuild overnote-axi (npm run build in its repository; the global install links to its dist/), then retry",
-    ],
-    { schema: version, supported: SUPPORTED_SCHEMA_VERSIONS.join(",") },
+    ["overnote-axi status", "overnote-axi open"],
+    { schema: version },
   );
+}
+
+function missingColumnsError(version: number, missing: string[], binPath: string): AxiError {
+  return axiError(
+    `the notes database (schema ${version}) lacks columns this overnote-axi reads`,
+    "DATABASE_ERROR",
+    // Only a newer schema can be fixed by updating; an older one without these columns is not a
+    // database Overnote wrote.
+    newerSchema(version) ? ["overnote-axi status", updateHint(binPath)] : ["overnote-axi status"],
+    { schema: version, missing: missing.join(",") },
+  );
+}
+
+/** `<table>.<column>` for each REQUIRED_COLUMNS entry the database lacks (a missing table lacks all). */
+function missingColumns(db: DatabaseSync): string[] {
+  const missing: string[] = [];
+  // table_xinfo, unlike table_info, also lists generated columns, in case a later schema derives
+  // one of these.
+  const probe = db.prepare("SELECT name FROM pragma_table_xinfo(?)");
+  for (const [table, columns] of Object.entries(REQUIRED_COLUMNS)) {
+    const present = new Set((probe.all(table) as Row[]).map((row) => String(row.name)));
+    for (const column of columns) if (!present.has(column)) missing.push(`${table}.${column}`);
+  }
+  return missing;
 }
 
 /**
  * Opens the database, or returns null when the file does not exist yet.
  * Throws DATABASE_ERROR (never a raw SQLite message) when it exists but cannot be read.
+ * `binPath`, the running script, only feeds the update hint of a newer schema that lacks columns.
  */
-export function openReader(file: string): NotesReader | null {
+export function openReader(file: string, binPath: string = process.argv[1] ?? ""): NotesReader | null {
   if (!existsSync(file)) return null;
   let isFile: boolean;
   try {
@@ -145,9 +222,11 @@ export function openReader(file: string): NotesReader | null {
     db.exec("PRAGMA query_only = ON");
     db.exec("PRAGMA busy_timeout = 1000");
     const version = Number((db.prepare("PRAGMA user_version").get() as Row | undefined)?.user_version ?? 0);
-    if (!SUPPORTED_SCHEMA_VERSIONS.includes(version)) throw unsupportedSchema(version);
-    // Touch the table so a file that is not an Overnote database fails here, not mid command.
-    db.prepare("SELECT count(*) FROM notes LIMIT 1").get();
+    if (!Number.isInteger(version) || version < 1) throw unsupportedSchema(version);
+    // A file that is not an Overnote database, or a schema without a column the queries use,
+    // fails here, not mid command.
+    const missing = missingColumns(db);
+    if (missing.length > 0) throw missingColumnsError(version, missing, binPath);
     return new ReadOnlyNotesDb(db, version);
   } catch (error) {
     db.close();

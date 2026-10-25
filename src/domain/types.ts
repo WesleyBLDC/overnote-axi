@@ -123,7 +123,7 @@ export interface NotesReader {
   currentNoteId(): NoteId | null;
   /** Live notes whose markdown links to `id`. */
   backlinks(id: NoteId): NoteSummary[];
-  /** `PRAGMA user_version` of the database (checked against SUPPORTED_SCHEMA_VERSIONS on open). */
+  /** `PRAGMA user_version` of the database (1 or newer, with REQUIRED_COLUMNS probed on open). */
   schemaVersion(): number;
   /**
    * Runs `read` inside one deferred read transaction (BEGIN ... COMMIT, allowed under
