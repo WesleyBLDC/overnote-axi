@@ -38,6 +38,7 @@ import type {
   TrashQuery,
 } from "../domain/types.js";
 import { AxiError, axiError } from "../errors.js";
+import { collapseHome } from "../output/render.js";
 
 /**
  * The newest schema version this build was tested with (overnote docs/architecture.md section 6).
@@ -147,10 +148,11 @@ function databaseError(message = "could not read the Overnote database"): AxiErr
  * The command that updates this overnote-axi, as one line to paste. `binPath` is the running
  * script; two levels up from its real path is the package root. A root with `.git` is a checkout,
  * which a linked install (`npm install -g .`, npm's default for a folder) runs from, so pulling
- * and rebuilding it updates the global command. Otherwise the install is a copy, rebuilt in the
- * checkout and installed again.
+ * and rebuilding it updates the global command; its path shows with `home` collapsed to `~`,
+ * left outside the quotes so the shell still expands it. Otherwise the install is a copy, whose
+ * checkout this build cannot name, so the hint is prose (no placeholder a shell would misread).
  */
-export function updateHint(binPath: string): string {
+export function updateHint(binPath: string, home = ""): string {
   let root: string | null;
   try {
     root = path.dirname(path.dirname(realpathSync(binPath)));
@@ -158,28 +160,29 @@ export function updateHint(binPath: string): string {
     root = null;
   }
   if (root && existsSync(path.join(root, ".git"))) {
-    const quoted = shellQuote(root);
+    const shown = collapseHome(root, home);
+    const quoted = shown === "~" ? shown : shown.startsWith("~/") ? `~/${shellQuote(shown.slice(2))}` : shellQuote(shown);
     return `git -C ${quoted} pull --ff-only && npm --prefix ${quoted} run build`;
   }
-  return "cd <overnote-axi checkout> && git pull --ff-only && npm run build && npm install -g .";
+  return "This install is a copy: in the overnote-axi checkout it was built from, run git pull --ff-only, npm run build, then npm install -g . (see the README)";
 }
 
 function unsupportedSchema(version: number): AxiError {
   return axiError(
-    `the notes database reports schema ${version}, and Overnote schemas start at 1`,
+    `the notes database reports schema ${version}, and Overnote schemas start at 1: the file is not an Overnote database yet`,
     "DATABASE_ERROR",
-    ["overnote-axi status", "overnote-axi open"],
+    ["overnote-axi status"],
     { schema: version },
   );
 }
 
-function missingColumnsError(version: number, missing: string[], binPath: string): AxiError {
+function missingColumnsError(version: number, missing: string[], binPath: string, home: string): AxiError {
   return axiError(
     `the notes database (schema ${version}) lacks columns this overnote-axi reads`,
     "DATABASE_ERROR",
     // Only a newer schema can be fixed by updating; an older one without these columns is not a
     // database Overnote wrote.
-    newerSchema(version) ? ["overnote-axi status", updateHint(binPath)] : ["overnote-axi status"],
+    newerSchema(version) ? ["overnote-axi status", updateHint(binPath, home)] : ["overnote-axi status"],
     { schema: version, missing: missing.join(",") },
   );
 }
@@ -200,9 +203,9 @@ function missingColumns(db: DatabaseSync): string[] {
 /**
  * Opens the database, or returns null when the file does not exist yet.
  * Throws DATABASE_ERROR (never a raw SQLite message) when it exists but cannot be read.
- * `binPath`, the running script, only feeds the update hint of a newer schema that lacks columns.
+ * `binPath`, the running script, and `home` only feed the update hint of a newer schema that lacks columns.
  */
-export function openReader(file: string, binPath: string = process.argv[1] ?? ""): NotesReader | null {
+export function openReader(file: string, binPath: string = process.argv[1] ?? "", home = ""): NotesReader | null {
   if (!existsSync(file)) return null;
   let isFile: boolean;
   try {
@@ -226,7 +229,7 @@ export function openReader(file: string, binPath: string = process.argv[1] ?? ""
     // A file that is not an Overnote database, or a schema without a column the queries use,
     // fails here, not mid command.
     const missing = missingColumns(db);
-    if (missing.length > 0) throw missingColumnsError(version, missing, binPath);
+    if (missing.length > 0) throw missingColumnsError(version, missing, binPath, home);
     return new ReadOnlyNotesDb(db, version);
   } catch (error) {
     db.close();

@@ -104,10 +104,10 @@ function backupsSection(status: SystemStatus): Record<string, unknown> {
   };
 }
 
-function hintsFor(helper: HelperReport, database: DatabaseReport, binPath: string): string[] {
+function hintsFor(helper: HelperReport, database: DatabaseReport, binPath: string, home: string): string[] {
   const hints = new Set<string>();
   if (helper.state !== "running") hints.add("overnote-axi open");
-  if (database.state === "ok" && newerSchema(database.schema)) hints.add(updateHint(binPath));
+  if (database.state === "ok" && newerSchema(database.schema)) hints.add(updateHint(binPath, home));
   if (helper.state === "error") for (const line of helper.error.suggestions) hints.add(line);
   if (database.state === "missing") {
     hints.add("overnote-axi open");
@@ -138,7 +138,7 @@ export const command: CommandSpec = {
           backups: helper.state === "running" ? backupsSection(helper.status) : undefined,
           build: { version: VERSION, core: CORE_REVISION },
         }),
-        renderHelp(hintsFor(helper, database, context.binPath)),
+        renderHelp(hintsFor(helper, database, context.binPath, context.home)),
       ]),
     );
   },

@@ -56,7 +56,7 @@ export interface ContextOverrides {
   binPath?: string;
   now?: () => number;
   paths?: () => OvernotePaths;
-  openReader?: (file: string) => NotesReader | null;
+  openReader?: (file: string, binPath: string, home: string) => NotesReader | null;
   connectWriter?: (paths: OvernotePaths, uid: number) => Promise<NotesWriter>;
   probeHelper?: (paths: OvernotePaths, uid: number) => Promise<HelperProbe>;
   sleep?: (ms: number) => Promise<void>;
@@ -93,7 +93,7 @@ export function createContext(overrides: ContextOverrides = {}): Context {
       if (reader === undefined) {
         const open = overrides.openReader;
         if (!open) throw axiError("internal: no reader factory configured", "UNKNOWN");
-        reader = open(context.paths().database);
+        reader = open(context.paths().database, context.binPath, home);
       }
       return reader;
     },
