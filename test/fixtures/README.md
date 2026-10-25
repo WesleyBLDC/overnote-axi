@@ -13,9 +13,11 @@ Never unset these in a test, and never call `/usr/bin/open` directly.
 - `run-cli.ts`: `runCli(argv, context)` runs one invocation through `main()` and returns the exit code and stdout; `lines()` builds the expected output.
 - `notes-db.ts`: `createNotesDb()` builds a `notes.sqlite` with the helper's schema (overnote docs/architecture.md section 6) in a temp support dir, for read path tests without the helper.
   Seed notes with `add()` (the same input as `FakeStore.add`, folded columns derived like the helper), set the current note with `setCurrent()`, point the CLI at it with `env()`, and call `cleanup()` after the test.
+  `schema: 2` adds the version 2 columns, indexes, `notes_fts` and its triggers (default is schema 1).
   `userVersion` and `noSchema` build the unsupported and broken database cases.
 - `temp-helper.ts`: starts the real `OvernoteHelper` binary headless against a temp support dir, runtime dir (created with mode `0o700`, asserted, because the CLI refuses any other mode), socket and backups dir, and stops it after the test.
   The binary comes from `OVERNOTE_HELPER_BIN`, else `<overnote checkout>/helper/.build/release/OvernoteHelper`; when it is missing, `helperBinary()` returns null and integration tests skip with `HELPER_MISSING` instead of failing.
+  `helperSchemaVersion(bin)` reads the schema the helper writes (`--schema-version`), so tests expect it instead of a hardcoded number.
   `startTempHelper()` returns the paths, `env()` for a CLI process, `call()` for direct RPC setup, `stop()`, and `cleanup()`.
 - `temp-home.ts`: `tempHome()` builds a fresh, empty home (with `CODEX_HOME` and `XDG_CONFIG_HOME` inside it) for the `setup` tests, plus a stand-in built CLI so `resolveProgram()` accepts it.
   `linkOnPath()` puts an `overnote-axi` link on a private PATH dir, and `remove()` deletes it all.

@@ -11,7 +11,7 @@
  * through the `.overnote` link. When it is missing, `helperBinary()` returns null and suites
  * skip with `HELPER_MISSING`, instead of failing on a machine without a Swift build.
  */
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { accessSync, constants, chmodSync, lstatSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,6 +37,14 @@ export function helperBinary(env: Readonly<Record<string, string | undefined>> =
   } catch {
     return null;
   }
+}
+
+/** The schema version the helper reports with `--schema-version` (what its database gets). */
+export function helperSchemaVersion(bin: string): number {
+  const out = execFileSync(bin, ["--schema-version"], { encoding: "utf8", timeout: 5000 }).trim();
+  const version = Number(out);
+  if (!Number.isInteger(version)) throw new Error(`${bin} --schema-version printed ${JSON.stringify(out)}`);
+  return version;
 }
 
 /** The skip message integration suites print when helperBinary() is null. */
