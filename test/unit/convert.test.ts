@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import * as core from "@overnote/core";
 import type { JSONContent } from "@overnote/core";
 
 import type { NoteContent, StoredNote } from "../../src/domain/types.js";
-import { converter, suffixedContent } from "../../src/markdown/convert.js";
+import { converter } from "../../src/markdown/convert.js";
 
 const paragraph = (text: string): JSONContent => ({ type: "paragraph", content: [{ type: "text", text }] });
 
@@ -99,16 +98,9 @@ describe("markdown conversion through @overnote/core", () => {
 });
 
 describe("a duplicate's title suffix", () => {
-  /** Core's own rule when the bundled core has it (Overnote protocol v3.0). */
-  const coreRule = (core as Readonly<Record<string, unknown>>)["duplicateContent"] as
-    | ((note: StoredNote, suffix: string) => NoteContent)
-    | undefined;
-
-  /** The fallback's content, checked against the converter, core when present, and a save. */
+  /** The converter's content (core's rule), checked against a save. */
   function copy(note: StoredNote, suffix = " copy"): NoteContent {
-    const content = suffixedContent(note, suffix);
-    expect(converter.duplicateContent(note, suffix)).toEqual(content);
-    if (coreRule) expect(coreRule(note, suffix)).toEqual(content);
+    const content = converter.duplicateContent(note, suffix);
     // Every field comes from the suffixed document, so a later save derives the same title.
     expect(converter.current(content)).toEqual(content);
     return content;
