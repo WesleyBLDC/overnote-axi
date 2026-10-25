@@ -446,10 +446,10 @@ pinned: 01JAB3K9QW Standup (position 4 of 4)
 One `notes.duplicate` call makes the copy; prints the new note like `create`, and like `create` (without `--open`) keeps `current` on the note it named.
 
 - Without `--suffix` (or with an empty one) it sends `notes.duplicate { id }`, an exact copy, on every helper version.
-- With `--suffix <text>` it builds the copy's content with `converter.duplicateContent` (section 3.1) from the source as the fresh `notes.get` returned it (read last, after the version ping and the core load, so the read sits right before the write), and sends it in the same call, `notes.duplicate { id } & NoteContent`, which the helper stores verbatim (architecture §5), as Search Notes' Duplicate does.
+- With `--suffix <text>` it builds the copy's content with `converter.duplicateContent` (section 3.1) from the source as the fresh `notes.get` returned it (read last, after the local lookup, the version ping and the core load, so the read sits right before the write), and sends it in the same call, `notes.duplicate { id } & NoteContent`, which the helper stores verbatim (architecture §5), as Search Notes' Duplicate does.
   No copy ever exists without its suffix, and no `notes.update` follows.
   The confirmation shows the suffixed title.
-- Content on `notes.duplicate` needs helper 0.5.0 (protocol v3.0) or newer, and how older helpers treat it is undocumented, so `--suffix` first reads the version from `system.ping`, before the fresh read.
+- Content on `notes.duplicate` needs helper 0.5.0 (protocol v3.0) or newer, and how older helpers treat it is undocumented, so `--suffix` first resolves the reference to an id against the read only SQLite reader (a local lookup, so `NOTE_NOT_FOUND`, an ambiguous title and `current` errors come before any helper refusal), then reads the version from `system.ping`, before the fresh read.
   An older or unparsable version fails before any write with `HELPER_ERROR`, a message naming 0.5.0 and the running version and saying to update Overnote, the hint `overnote-axi open`, and `overnote-axi duplicate <id>` for an exact copy.
 - The CLI never sends `titleSuffix`: helpers before protocol v3.0 stored it in the title only, so the copy's first line kept the old title and its next save dropped the suffix, and v3.0 refuses it with `-32602`.
 

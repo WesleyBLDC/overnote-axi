@@ -9,7 +9,7 @@
 import { flagString, ok, type CommandSpec } from "../command.js";
 import type { NotesWriter } from "../domain/types.js";
 import { axiError } from "../errors.js";
-import { trashedError } from "../store/refs.js";
+import { resolveNote, trashedError } from "../store/refs.js";
 import { renderNewNote } from "./create.js";
 import { keepCurrent, resolveFresh, storedCurrent } from "./note-ops.js";
 import { NOTE_ARG } from "./shared.js";
@@ -29,13 +29,13 @@ function takesContent(version: string): boolean {
 }
 
 /** Refuses `--suffix` on a helper too old to take content, before anything is written. */
-async function requireContentHelper(writer: NotesWriter, ref: string): Promise<void> {
+async function requireContentHelper(writer: NotesWriter, id: string): Promise<void> {
   const { version } = await writer.ping();
   if (takesContent(version)) return;
   throw axiError(
     `duplicate --suffix needs Overnote helper ${CONTENT_HELPER.join(".")} or newer, and the running helper is ${version}; update Overnote, then run overnote-axi open`,
     "HELPER_ERROR",
-    ["overnote-axi open", `overnote-axi duplicate ${ref}`],
+    ["overnote-axi open", `overnote-axi duplicate ${id}`],
     { helperVersion: version },
   );
 }
@@ -54,10 +54,12 @@ export const command: CommandSpec = {
   run: async (args, context) => {
     const ref = args.positionals[0]!;
     const suffix = flagString(args, "suffix") ?? "";
-    // The version ping and the core load come first, so the fresh read is right before the write.
+    // The local lookup, the version ping and the core load come first, so the fresh read is right
+    // before the write and the old helper hint can name the resolved id.
     let converter;
     if (suffix !== "") {
-      await requireContentHelper(await context.writer(), ref);
+      const { id } = context.reader().snapshot((reader) => resolveNote(reader, ref, { allowTrashed: true, command: "duplicate" }));
+      await requireContentHelper(await context.writer(), id);
       converter = await context.converter();
     }
     const { writer, note: source } = await resolveFresh(context, ref, "duplicate");

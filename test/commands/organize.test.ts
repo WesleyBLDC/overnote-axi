@@ -165,6 +165,19 @@ describe("duplicate", () => {
     expect(h.fakes.store.live()).toHaveLength(1);
   });
 
+  it("prints the resolved id in the old helper hint, and resolves the ref before the helper refusal", async () => {
+    const source = h.seed("# Weekly Plan\n\n- milk");
+    h.fakes.store.helperVersion = "0.4.0";
+    const spaced = await h.run(["duplicate", "title:Weekly Plan", "--suffix", " copy"]);
+    expect(spaced.out).toContain("code: HELPER_ERROR");
+    expect(spaced.out).toContain(`  overnote-axi duplicate ${source.id}\n`);
+    expect(spaced.out).not.toContain("title:Weekly Plan");
+    const unknown = await h.run(["duplicate", "title:No Such Note", "--suffix", " copy"]);
+    expect(unknown.out).toContain("code: NOTE_NOT_FOUND");
+    expect(h.fakes.writer.calls.map((call) => call.method)).toEqual(["ping"]);
+    expect(h.writes()).toEqual([]);
+  });
+
   it("refuses a note in Recently Deleted", async () => {
     const gone = h.seed("Gone", { deletedAt: 1 });
     expect((await h.run(["duplicate", gone.id])).out).toContain("code: NOTE_TRASHED");
