@@ -3,13 +3,13 @@
  *
  * Without `--suffix` the copy is an exact `notes.duplicate { id }`, on every helper. With it, the
  * suffixed content (core's `duplicateContent` rule, built from the fresh `notes.get` of the
- * source) goes in that same call, so no copy ever exists without its suffix. Sending content
- * needs helper 0.5.0 (protocol v3.0) or newer, checked with `system.ping` before any write.
+ * source, read last) goes in that same call, so no copy ever exists without its suffix. Sending
+ * content needs helper 0.5.0 (protocol v3.0) or newer, checked with `system.ping` before any read.
  */
 import { flagString, ok, type CommandSpec } from "../command.js";
-import type { NoteId, NotesWriter } from "../domain/types.js";
+import type { NotesWriter } from "../domain/types.js";
 import { axiError } from "../errors.js";
-import { trashedError } from "../store/refs.js";
+import { resolveNote, trashedError } from "../store/refs.js";
 import { renderNewNote } from "./create.js";
 import { keepCurrent, resolveFresh, storedCurrent } from "./note-ops.js";
 import { NOTE_ARG } from "./shared.js";
@@ -29,7 +29,7 @@ function takesContent(version: string): boolean {
 }
 
 /** Refuses `--suffix` on a helper too old to take content, before anything is written. */
-async function requireContentHelper(writer: NotesWriter, id: NoteId): Promise<void> {
+async function requireContentHelper(writer: NotesWriter, id: string): Promise<void> {
   const { version } = await writer.ping();
   if (takesContent(version)) return;
   throw axiError(
@@ -52,14 +52,19 @@ export const command: CommandSpec = {
   ],
   examples: ["overnote-axi duplicate current", 'overnote-axi duplicate RN7Q3K --suffix " (draft)"'],
   run: async (args, context) => {
-    const { writer, note: source } = await resolveFresh(context, args.positionals[0]!, "duplicate");
-    if (source.deletedAt !== null) throw trashedError(source);
+    const ref = args.positionals[0]!;
     const suffix = flagString(args, "suffix") ?? "";
-    let content;
+    // The local lookup, the version ping and the core load come first, so the fresh read is right
+    // before the write and the old helper hint can name the resolved id.
+    let converter;
     if (suffix !== "") {
-      await requireContentHelper(writer, source.id);
-      content = (await context.converter()).duplicateContent(source, suffix);
+      const { id } = context.reader().snapshot((reader) => resolveNote(reader, ref, { allowTrashed: true, command: "duplicate" }));
+      await requireContentHelper(await context.writer(), id);
+      converter = await context.converter();
     }
+    const { writer, note: source } = await resolveFresh(context, ref, "duplicate");
+    if (source.deletedAt !== null) throw trashedError(source);
+    const content = converter?.duplicateContent(source, suffix);
     const previous = storedCurrent(context);
     const copy = await writer.duplicate(source.id, content);
     const warning = await keepCurrent(context, writer, previous, copy.id);
