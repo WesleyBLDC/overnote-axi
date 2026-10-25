@@ -6,6 +6,8 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+const GIT_TIMEOUT_MS = 5000;
+
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /**
@@ -61,6 +63,7 @@ function mainCheckoutParent(root) {
     const common = execFileSync("git", ["-C", root, "rev-parse", "--git-common-dir"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
+      timeout: GIT_TIMEOUT_MS,
     }).trim();
     return path.dirname(path.dirname(path.resolve(root, common)));
   } catch {
@@ -83,6 +86,8 @@ export function coreIsDirty(dir) {
     const out = execFileSync("git", ["-C", dir, "status", "--porcelain", "--untracked-files=no", "--", "packages/core"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
+      timeout: GIT_TIMEOUT_MS,
+      env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
     });
     return out.trim() !== "";
   } catch {
@@ -99,6 +104,12 @@ export function overnoteDir({ root = repoRoot, env = process.env, warn = console
         "Clone https://github.com/WesleyBLDC/overnote next to this repo and run npm install there, or set OVERNOTE_DIR.",
     );
   }
+  if (env.OVERNOTE_REQUIRE_CLEAN !== "1" && coreIsDirty(dir)) {
+    warn(
+      `warning: packages/core in ${dir} has uncommitted changes, so the bundled core differs from its commit. ` +
+        "Set OVERNOTE_DIR to a clean checkout to avoid that.",
+    );
+  }
   if (!exportsName(core, "duplicateContent")) {
     throw new Error(
       `The Overnote core at ${dir} does not export duplicateContent (packages/core/src/index.ts). ` +
@@ -107,12 +118,6 @@ export function overnoteDir({ root = repoRoot, env = process.env, warn = console
   }
   if (!existsSync(path.join(dir, "node_modules", "@tiptap", "core"))) {
     throw new Error(`The Overnote checkout at ${dir} has no node_modules yet. Run npm install there first.`);
-  }
-  if (env.OVERNOTE_REQUIRE_CLEAN !== "1" && coreIsDirty(dir)) {
-    warn(
-      `warning: packages/core in ${dir} has uncommitted changes, so the bundled core differs from its commit. ` +
-        "Set OVERNOTE_DIR to a clean checkout to avoid that.",
-    );
   }
   return dir;
 }

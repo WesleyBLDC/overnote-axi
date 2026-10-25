@@ -81,6 +81,21 @@ describe("overnoteDir dirty core warning", () => {
     overnoteDir({ root: dir, env: { ...env, OVERNOTE_REQUIRE_CLEAN: "1" }, warn: (line: string) => warnings.push(line) });
     expect(warnings).toEqual([]);
   });
+
+  it("warns about a dirty core before throwing the missing export error", () => {
+    const dir = tempDir();
+    fakeOvernote(dir);
+    write(path.join(dir, "packages/core/src/index.ts"), "export function other() {}\n");
+    git(dir, "commit", "-q", "-am", "drop export");
+    write(path.join(dir, "packages/core/src/index.ts"), "export function other() {}\n// edited\n");
+    const warnings: string[] = [];
+
+    expect(() => overnoteDir({ root: dir, env: { OVERNOTE_DIR: dir }, warn: (line: string) => warnings.push(line) })).toThrow(
+      /does not export duplicateContent/,
+    );
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("uncommitted changes");
+  });
 });
 
 describe("exportsName", () => {
