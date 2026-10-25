@@ -13,7 +13,7 @@ Older Overnote versions let the unsaved edit win, so the CLI warns whenever it w
 
 ## Install
 
-Needs macOS, Node 22.16 or newer (for `node:sqlite` without a flag and FTS5), Overnote, and an Overnote checkout next to this one (the build bundles `@overnote/core` from it; set `OVERNOTE_DIR` to use another path).
+Needs macOS, Node 22.16 or newer (for `node:sqlite` without a flag and FTS5), Overnote, and an Overnote checkout next to this one (the build bundles `@overnote/core` from it; inside a git worktree it uses the one next to the main checkout, and `OVERNOTE_DIR` sets another path).
 
 ```console
 git clone https://github.com/WesleyBLDC/overnote ../overnote && (cd ../overnote && npm install)
