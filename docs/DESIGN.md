@@ -93,13 +93,14 @@ The CLI never creates the runtime dir or the database.
 
 ### 3.3 Bundling `@overnote/core`
 
-- `scripts/link-overnote.mjs` maintains a git-ignored `.overnote` symlink to the Overnote checkout (`OVERNOTE_DIR`, default `../overnote`); npm runs it before `build`, `test`, and `typecheck`.
+- `scripts/link-overnote.mjs` maintains a git-ignored `.overnote` symlink to the Overnote checkout (`OVERNOTE_DIR`, else `../overnote`, else, inside a git worktree, the `overnote` folder next to the main checkout, found through `git rev-parse --git-common-dir`); npm runs it before `build`, `test`, and `typecheck`.
 - `tsconfig.json` paths and `vitest.config.ts` aliases resolve `@overnote/core` and `@overnote/core/text` through that symlink, so types and tests use the real source.
 - `scripts/build.mjs` runs esbuild with `splitting: true`: the entry `dist/overnote-axi.js` is a few hundred bytes, every command is its own chunk, and `src/markdown/convert.ts` (the only importer of the full core entry, reached only through a dynamic import) pulls Tiptap, ProseMirror, and markdown-it into one chunk of about 500 KB that read commands never load.
 - Light helpers (`fold`, `displayTitle`) come from `@overnote/core/text`, which has no Tiptap import.
 - The published package contains only `dist/`, the skill, `LICENSE`, and `README.md`; `dependencies` stays empty.
-- The build refuses a core that does not export `duplicateContent` (`scripts/overnote-dir.mjs` reads `packages/core/src/index.ts` with comments removed and accepts a declared export, an `export { ... }` list, or an `export * from` a module that exports it, then says which Overnote checkout to update), so `src/markdown/convert.ts` imports it directly.
+- The build refuses a core that does not export `duplicateContent` (`scripts/overnote-dir.mjs` reads `packages/core/src/index.ts` with comments removed and accepts a declared export, an `export { ... }` list, or an `export * from` a module that exports it (a `./x.js` specifier maps to `x.ts`), keeps regex literals intact while blanking comments, then says which Overnote checkout to update), so `src/markdown/convert.ts` imports it directly.
 - The build records which core it bundled: `git rev-parse --short HEAD` of the Overnote checkout plus `-dirty` when `packages/core` has uncommitted changes, compiled into `src/build-info.ts` and shown by `status`.
+  Outside `prepack`, a dirty core also prints one warning line that names the checkout and suggests `OVERNOTE_DIR`.
   `prepack` builds with `OVERNOTE_REQUIRE_CLEAN=1`, which refuses a dirty core unless `OVERNOTE_ALLOW_DIRTY=1`, and runs the skill check, so a stale or missing `dist/` cannot be packed.
 - `bin/overnote-axi.ts` checks `process.versions.node` right after the version fast path: below 22.16 (`node:sqlite` needs a flag before 22.13 and FTS5 is missing before 22.16) it prints `error: overnote-axi needs Node 22.16 or newer (running <v>)` with `code: VALIDATION_ERROR` and exits 2, except the home view, which prints the same message as a degraded payload and exits 0 so a hook never breaks a session.
 
