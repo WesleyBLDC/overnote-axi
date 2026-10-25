@@ -343,6 +343,10 @@ export class FakeWriter implements NotesWriter {
 
   async duplicate(id: NoteId, content?: NoteContent): Promise<Note> {
     this.enter("duplicate", ...(content ? [id, content] : [id]));
+    // The real 0.5.0 helper refuses content without rawContent with -32602.
+    if (content && !content.rawContent) {
+      throw axiError("Overnote refused notes.duplicate", "HELPER_ERROR", ["overnote-axi status"]);
+    }
     const source = this.find(id);
     const { rawContent, markdown, text, title } = content ?? source;
     const copy = this.store.add({ rawContent, markdown, text, title, caretPosition: 0 });

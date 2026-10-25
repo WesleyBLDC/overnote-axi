@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { axiError } from "../../src/errors.js";
+import { converter } from "../../src/markdown/convert.js";
 import { harness, splitLines, type Harness } from "./write-helpers.js";
 
 let h: Harness;
@@ -108,13 +109,31 @@ describe("duplicate", () => {
       `  overnote-axi read ${copy.id}`,
       `  overnote-axi update ${copy.id} --content "<markdown>"`,
     ]);
-    const calls = h.fakes.writer.calls.map((call) => call.method);
-    expect(calls.indexOf("ping")).toBeLessThan(calls.indexOf("duplicate"));
+    expect(h.fakes.writer.calls.map((call) => call.method)).toEqual(["ping", "get", "duplicate"]);
     expect(h.writes()).toEqual(["duplicate"]);
     const [id, content] = h.fakes.writer.calls.find((call) => call.method === "duplicate")!.args;
     expect(id).toBe(source.id);
     expect(content).toEqual({ rawContent: copy.rawContent, markdown: copy.markdown, text: copy.text, title: copy.title });
     expect(h.stored(source.id).markdown).toBe("# Plan\n\n- milk");
+  });
+
+  it("loads the converter before the fresh read, so the read sits right before the write", async () => {
+    const source = h.seed("Plan");
+    const callsAtLoad: string[][] = [];
+    const loadConverter = async () => {
+      callsAtLoad.push(h.fakes.writer.calls.map((call) => call.method));
+      return converter;
+    };
+    expect((await h.run(["duplicate", source.id, "--suffix", " x"], { loadConverter })).code).toBe(0);
+    expect(callsAtLoad).toEqual([["ping"]]);
+    expect(h.fakes.writer.calls.map((call) => call.method)).toEqual(["ping", "get", "duplicate"]);
+  });
+
+  it("FakeWriter.duplicate refuses content without rawContent, as the 0.5.0 helper does", async () => {
+    const source = h.seed("Plan");
+    const { rawContent: _raw, ...bare } = converter.fromMarkdown("Plan x");
+    await expect(h.fakes.writer.duplicate(source.id, bare as never)).rejects.toMatchObject({ code: "HELPER_ERROR" });
+    expect(h.fakes.store.live()).toHaveLength(1);
   });
 
   it("without --suffix makes one exact duplicate call, on any helper", async () => {
