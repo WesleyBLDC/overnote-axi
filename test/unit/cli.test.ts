@@ -101,7 +101,11 @@ describe("guardStdout", () => {
     const stream = new EventEmitter();
     let exitCode = -1;
     let exited = false;
-    guardStdout(stream, (code) => (exitCode = code), () => (exited = true));
+    guardStdout(
+      stream,
+      (code) => (exitCode = code),
+      () => (exited = true),
+    );
     stream.emit("error", Object.assign(new Error("write EPIPE"), { code: "EPIPE" }));
     expect(exitCode).toBe(0);
     expect(exited).toBe(true);
@@ -109,7 +113,11 @@ describe("guardStdout", () => {
 
   it("rethrows any other stream error", () => {
     const stream = new EventEmitter();
-    guardStdout(stream, () => undefined, () => undefined);
+    guardStdout(
+      stream,
+      () => undefined,
+      () => undefined,
+    );
     expect(() => stream.emit("error", Object.assign(new Error("nope"), { code: "EIO" }))).toThrow("nope");
   });
 });

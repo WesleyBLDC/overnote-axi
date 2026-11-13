@@ -67,7 +67,14 @@ describe("list", () => {
     const { fake } = seeded();
     const { out } = await list(fake, "--pinned", "--fields", "title,pinned");
     expect(out).toBe(
-      lines("count: 2 of 2 pinned notes", "notes[2]{title,pinned}:", "  Bravo,1", "  Alpha,2", "help[1]:", "  overnote-axi read <id>"),
+      lines(
+        "count: 2 of 2 pinned notes",
+        "notes[2]{title,pinned}:",
+        "  Bravo,1",
+        "  Alpha,2",
+        "help[1]:",
+        "  overnote-axi read <id>",
+      ),
     );
   });
 

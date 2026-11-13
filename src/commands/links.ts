@@ -32,7 +32,9 @@ export const command: CommandSpec = {
         const target = reader.get(link.id);
         return { id: link.id, title: target ? displayTitle(target) : MISSING_TITLE };
       });
-      const sources = reader.backlinks(found.id).map((source): LinkRow => ({ id: source.id, title: summaryTitle(source) }));
+      const sources = reader
+        .backlinks(found.id)
+        .map((source): LinkRow => ({ id: source.id, title: summaryTitle(source) }));
       return { note: found, outgoing: targets, backlinks: sources };
     });
 
@@ -47,7 +49,9 @@ export const command: CommandSpec = {
           state: note.deletedAt === null ? undefined : "trashed",
         }),
         outgoing.length > 0 ? renderRows("outgoing", outgoing, LINK_COLUMNS) : renderEmpty("outgoing", "0 links"),
-        backlinks.length > 0 ? renderRows("backlinks", backlinks, LINK_COLUMNS) : renderEmpty("backlinks", "0 notes link here"),
+        backlinks.length > 0
+          ? renderRows("backlinks", backlinks, LINK_COLUMNS)
+          : renderEmpty("backlinks", "0 notes link here"),
         renderHelp(hints),
       ]),
     );

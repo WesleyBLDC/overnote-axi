@@ -11,7 +11,13 @@ import { markdownNoteLink } from "../../src/domain/deeplink.js";
 import type { NoteContent } from "../../src/domain/types.js";
 import { createRuntimeContext } from "../../src/runtime.js";
 import { lines, runCli } from "../fixtures/run-cli.js";
-import { HELPER_MISSING, helperBinary, helperSchemaVersion, startTempHelper, type TempHelper } from "../fixtures/temp-helper.js";
+import {
+  HELPER_MISSING,
+  helperBinary,
+  helperSchemaVersion,
+  startTempHelper,
+  type TempHelper,
+} from "../fixtures/temp-helper.js";
 
 const available = helperBinary() !== null;
 const schema = () => helperSchemaVersion(helperBinary()!);
@@ -20,9 +26,16 @@ function content(body: string): NoteContent {
   const blocks = body.split("\n");
   const doc = {
     type: "doc",
-    content: blocks.map((line) => (line ? { type: "paragraph", content: [{ type: "text", text: line }] } : { type: "paragraph" })),
+    content: blocks.map((line) =>
+      line ? { type: "paragraph", content: [{ type: "text", text: line }] } : { type: "paragraph" },
+    ),
   };
-  return { rawContent: JSON.stringify(doc), markdown: body, text: body, title: blocks.find((line) => line.trim())?.trim() ?? "" };
+  return {
+    rawContent: JSON.stringify(doc),
+    markdown: body,
+    text: body,
+    title: blocks.find((line) => line.trim())?.trim() ?? "",
+  };
 }
 
 const title = "read commands against the real helper";
@@ -32,7 +45,10 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
 
   function run(...argv: string[]) {
     // The isolated environment of test/setup.ts, pointed at this helper (OVERNOTE_AXI_OPEN_CMD stays /usr/bin/true).
-    return runCli(argv, createRuntimeContext({ env: { ...process.env, ...helper.env(), OVERNOTE_AXI_OPEN_CMD: "/usr/bin/true" } }));
+    return runCli(
+      argv,
+      createRuntimeContext({ env: { ...process.env, ...helper.env(), OVERNOTE_AXI_OPEN_CMD: "/usr/bin/true" } }),
+    );
   }
 
   beforeAll(async () => {
@@ -53,7 +69,10 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     // A later millisecond, so Standup is the newest note even when the pin and the create share one
     // (the newest note fallback breaks an updatedAt tie by the smaller id, which is Groceries).
     await new Promise((resolve) => setTimeout(resolve, 5));
-    const standup = await helper.call("notes.create", content(`Standup\n${markdownNoteLink("Groceries", groceries.id)}`));
+    const standup = await helper.call(
+      "notes.create",
+      content(`Standup\n${markdownNoteLink("Groceries", groceries.id)}`),
+    );
 
     const home = await run("home");
     // The newest note either way: current after an older helper's create, else the fallback.

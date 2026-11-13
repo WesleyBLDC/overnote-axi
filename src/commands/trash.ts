@@ -8,14 +8,29 @@
  * the count check and the helper call is erased too. The erased count the helper returns is
  * compared with the checked one, and any difference is reported in the output.
  */
-import { flagBoolean, flagList, flagNumber, ok, type CommandOutput, type CommandSpec, type ParsedArgs } from "../command.js";
+import {
+  flagBoolean,
+  flagList,
+  flagNumber,
+  ok,
+  type CommandOutput,
+  type CommandSpec,
+  type ParsedArgs,
+} from "../command.js";
 import type { Context } from "../context.js";
 import { axiError, validation } from "../errors.js";
 import { renderDetail } from "../output/render.js";
 import { pagedListing } from "./listing.js";
 import { listColumns, type ListField } from "./note-columns.js";
 import { noOp } from "./note-ops.js";
-import { DEFAULT_LIST_FIELDS, DEFAULT_TRASH_FIELDS, fieldsFlag, limitFlag, OFFSET_FLAG, TRASH_FIELDS } from "./shared.js";
+import {
+  DEFAULT_LIST_FIELDS,
+  DEFAULT_TRASH_FIELDS,
+  fieldsFlag,
+  limitFlag,
+  OFFSET_FLAG,
+  TRASH_FIELDS,
+} from "./shared.js";
 
 const DEFAULT_LIMIT = 50;
 const NOUN = "notes in Recently Deleted";

@@ -87,7 +87,9 @@ describe("status", () => {
   it("reports a helper that does not answer", async () => {
     const fake = fakeContext({
       connectWriter: async () => {
-        throw axiError("Overnote did not answer system.ping in time; retry once", "HELPER_TIMEOUT", ["overnote-axi status"]);
+        throw axiError("Overnote did not answer system.ping in time; retry once", "HELPER_TIMEOUT", [
+          "overnote-axi status",
+        ]);
       },
     });
     const { code, out } = await status(fake);
@@ -98,7 +100,10 @@ describe("status", () => {
 
   it("reports any other helper error with its code", async () => {
     const fake = fakeContext();
-    fake.fakes.store.failNext("status", axiError("Overnote could not complete system.status", "HELPER_ERROR", ["overnote-axi status"]));
+    fake.fakes.store.failNext(
+      "status",
+      axiError("Overnote could not complete system.status", "HELPER_ERROR", ["overnote-axi status"]),
+    );
     const { code, out } = await status(fake);
     expect(code).toBe(0);
     expect(out).toContain("  state: error\n  error: Overnote could not complete system.status\n  code: HELPER_ERROR\n");
@@ -118,10 +123,12 @@ describe("status", () => {
   it("reports an unreadable database with its details", async () => {
     const fake = fakeContext({
       openReader: () => {
-        throw axiError("the notes database (schema 9) lacks columns this overnote-axi reads", "DATABASE_ERROR", [
-          "overnote-axi status",
-          UPDATE_HINT,
-        ], { schema: 9, missing: "notes.text_fold" });
+        throw axiError(
+          "the notes database (schema 9) lacks columns this overnote-axi reads",
+          "DATABASE_ERROR",
+          ["overnote-axi status", UPDATE_HINT],
+          { schema: 9, missing: "notes.text_fold" },
+        );
       },
     });
     const { code, out } = await status(fake);
@@ -191,7 +198,12 @@ describe("stoppedReason", () => {
     root = mkdtempSync(path.join(os.tmpdir(), "overnote-axi-status-"));
     assertIsolated(root, "status test dir");
     const runtimeDir = path.join(root, "run");
-    paths = { supportDir: root, database: path.join(root, "notes.sqlite"), runtimeDir, socket: path.join(runtimeDir, "helper.sock") };
+    paths = {
+      supportDir: root,
+      database: path.join(root, "notes.sqlite"),
+      runtimeDir,
+      socket: path.join(runtimeDir, "helper.sock"),
+    };
   });
 
   afterEach(() => rmSync(root, { recursive: true, force: true }));

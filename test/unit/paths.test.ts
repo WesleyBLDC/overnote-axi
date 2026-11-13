@@ -40,7 +40,11 @@ describe("resolvePaths", () => {
   });
 
   it("ignores blank overrides and resolves relative ones", () => {
-    const paths = resolvePaths({ env: { OVERNOTE_SUPPORT_DIR: "  ", OVERNOTE_RUNTIME_DIR: "rel/run" }, home: "/h", uid: 7 });
+    const paths = resolvePaths({
+      env: { OVERNOTE_SUPPORT_DIR: "  ", OVERNOTE_RUNTIME_DIR: "rel/run" },
+      home: "/h",
+      uid: 7,
+    });
     expect(paths.supportDir).toBe(`/h/${DEFAULT_SUPPORT_SUBPATH}`);
     expect(paths.runtimeDir).toBe(path.resolve("rel/run"));
   });

@@ -100,7 +100,9 @@ const CREATING_METHODS: ReadonlySet<string> = new Set(["notes.create", "notes.du
 
 /** Where to look before retrying a write whose outcome is unknown. */
 function lookFirst(method: string | undefined): string {
-  return method !== undefined && CREATING_METHODS.has(method) ? "overnote-axi list --sort created" : "overnote-axi read <id>";
+  return method !== undefined && CREATING_METHODS.has(method)
+    ? "overnote-axi list --sort created"
+    : "overnote-axi read <id>";
 }
 
 /**

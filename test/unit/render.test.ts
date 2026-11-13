@@ -14,7 +14,10 @@ import {
 describe("render", () => {
   it("renders a list with its aggregate count", () => {
     const items = [{ id: "01A", title: "One" }];
-    const columns = [column<(typeof items)[number]>("id", (item) => item.id), column("title", (item: (typeof items)[number]) => item.title)];
+    const columns = [
+      column<(typeof items)[number]>("id", (item) => item.id),
+      column("title", (item: (typeof items)[number]) => item.title),
+    ];
     expect(renderList("notes", items, columns, { total: 40, noun: "live notes" })).toBe(
       "count: 1 of 40 live notes\nnotes[1]{id,title}:\n  01A,One",
     );
@@ -58,7 +61,9 @@ describe("render", () => {
 
   it("cuts at the last line break, else the last space, never mid word", () => {
     const lines = `${"a".repeat(90)}\n${"b".repeat(30)}`;
-    expect(truncate(lines, false, 100).text).toBe(`${"a".repeat(90)}\n... (truncated, showing 90 of 121 markdown chars)`);
+    expect(truncate(lines, false, 100).text).toBe(
+      `${"a".repeat(90)}\n... (truncated, showing 90 of 121 markdown chars)`,
+    );
     const words = `${"word ".repeat(30)}`;
     const cut = truncate(words, false, 52);
     expect(cut.text.split("\n")[0]).toBe("word ".repeat(10).trim());

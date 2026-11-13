@@ -40,7 +40,7 @@ export const SAFETY: readonly string[] = [
   "Use `update --replace` or `delete` only when the user asks for a rewrite or a deletion of that note; `--replace` also needs the `--expected-updated-at` that `read` printed",
   "`LOSSY_REWRITE` means markdown cannot hold part of the note; prefer `update` (append) or a narrower `edit` over `--allow-loss`",
   "`delete` moves a note to Recently Deleted for 60 days and `recover <id>` restores it, so say so when you delete",
-  "Pass `--permanent` (`delete --permanent <full id>`, `trash --empty --permanent --expected-count <n>`) only when the user explicitly asked in this conversation to erase notes for good; never infer it from \"delete\" or \"clean up\", and no hint ever offers it",
+  'Pass `--permanent` (`delete --permanent <full id>`, `trash --empty --permanent --expected-count <n>`) only when the user explicitly asked in this conversation to erase notes for good; never infer it from "delete" or "clean up", and no hint ever offers it',
   "A write to the note open in Overnote prints a warning: Overnote merges it with unsaved typing, and an older Overnote that saves over it is reported as `OVERWRITTEN_BY_EDITOR`",
   "Never read or write Overnote's database or files directly, and never drive the Raycast window; this CLI is the only interface",
 ];

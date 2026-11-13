@@ -104,8 +104,12 @@ Errors print on stdout as TOON with `error`, `code`, and `help` lines; nothing g
 npm test            # unit, integration, and built binary tests (never touch your real notes)
 npm run typecheck
 npm run build       # dist/overnote-axi.js plus lazily loaded chunks
-npm run check       # all of the above plus the skill staleness check
+npm run format      # Prettier, the whole repo (Markdown excluded)
+npm run lint        # Oxlint, correctness rules
+npm run check       # format check, lint, all of the above, plus the skill staleness check
 ```
+
+Claude Code sessions opened in this repo format every file they edit with Prettier, through the hook in `.claude/settings.json`.
 
 The integration tests start the real Overnote helper headless in a temp directory when `../overnote/helper/.build/release/OvernoteHelper` exists, and skip otherwise.
 The build records the Overnote commit it bundled (shown by `overnote-axi status`) and writes `dist/THIRD_PARTY_LICENSES.txt` with the license of every bundled package.

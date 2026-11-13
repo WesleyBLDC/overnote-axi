@@ -51,8 +51,8 @@ describe("deeplinks", () => {
       `mention ${A}`,
       "[web](https://example.com)",
       "[bad](raycast://extensions/wesleybldc/overnote/toggle-notes?context=%7Bnot-json)",
-      '[no id](raycast://extensions/wesleybldc/overnote/toggle-notes?context=%7B%22x%22%3A1%7D)',
-      '[short](raycast://extensions/wesleybldc/overnote/toggle-notes?context=%7B%22id%22%3A%22ABC%22%7D)',
+      "[no id](raycast://extensions/wesleybldc/overnote/toggle-notes?context=%7B%22x%22%3A1%7D)",
+      "[short](raycast://extensions/wesleybldc/overnote/toggle-notes?context=%7B%22id%22%3A%22ABC%22%7D)",
       "[other ext](raycast://extensions/someone/else/toggle-notes?context=%7B%7D)",
     ].join("\n");
     expect(extractNoteLinks(markdown)).toEqual([]);

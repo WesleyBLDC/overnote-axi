@@ -48,7 +48,9 @@ describe("read commands over SQLite", () => {
     const note = db.add({ body: "Trip\nWe should visit the Musée d'Orsay on Tuesday" });
     db.add({ body: "Unrelated" });
     const { out } = await run("search", "MUSEE", "--fields", "id,match,updated");
-    expect(out).toContain(`  ${note.id},Trip We should visit the Musée d'Orsay on Tuesday,${isoDate(note.updatedAt)}\n`);
+    expect(out).toContain(
+      `  ${note.id},Trip We should visit the Musée d'Orsay on Tuesday,${isoDate(note.updatedAt)}\n`,
+    );
   });
 
   it("counts and lists backlinks however the link was encoded, and outgoing links in order", async () => {

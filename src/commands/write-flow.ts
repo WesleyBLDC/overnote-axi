@@ -23,7 +23,15 @@
 import { displayTitle } from "@overnote/core/text";
 
 import type { Context } from "../context.js";
-import type { ComposeMode, MarkdownConverter, Note, NoteContent, NoteId, NotesReader, RewriteLoss } from "../domain/types.js";
+import type {
+  ComposeMode,
+  MarkdownConverter,
+  Note,
+  NoteContent,
+  NoteId,
+  NotesReader,
+  RewriteLoss,
+} from "../domain/types.js";
 import { axiError } from "../errors.js";
 import { alreadyPresent } from "../markdown/compose.js";
 import { resolveNote, trashedError } from "../store/refs.js";
@@ -62,14 +70,18 @@ export interface WriteRequest {
 }
 
 export type WriteOutcome =
-  | { status: "written"; note: Note; details: WriteDetails; warning?: string }
-  | { status: "no-op"; note: Note };
+  { status: "written"; note: Note; details: WriteDetails; warning?: string } | { status: "no-op"; note: Note };
 
 /**
  * The plan for adding `addition` to a note (update, link --into): null when it is already there,
  * so a retry is a no-op. A prepend below the title line checks the markdown below the title.
  */
-export function planAddition(fresh: Note, converter: MarkdownConverter, addition: string, mode: ComposeMode): PlannedWrite | null {
+export function planAddition(
+  fresh: Note,
+  converter: MarkdownConverter,
+  addition: string,
+  mode: ComposeMode,
+): PlannedWrite | null {
   const normalized = converter.normalize(addition);
   const stored = mode === "prepend" ? (converter.belowTitle(fresh) ?? fresh.markdown) : fresh.markdown;
   if (alreadyPresent(stored, normalized, mode)) return null;
@@ -137,9 +149,20 @@ export async function writeContent(context: Context, request: WriteRequest): Pro
   }
 
   const { rawContent, markdown, text, title } = planned.content;
-  const result = await writer.update({ id: fresh.id, expectedUpdatedAt: fresh.updatedAt, rawContent, markdown, text, title });
+  const result = await writer.update({
+    id: fresh.id,
+    expectedUpdatedAt: fresh.updatedAt,
+    rawContent,
+    markdown,
+    text,
+    title,
+  });
   if (result.status === "conflict") {
-    throw staleWrite(fresh.id, result.note.updatedAt, "the note changed while this write was prepared; nothing was written");
+    throw staleWrite(
+      fresh.id,
+      result.note.updatedAt,
+      "the note changed while this write was prepared; nothing was written",
+    );
   }
 
   const details: Record<string, string | number> = { ...planned.details };
@@ -159,5 +182,10 @@ export async function writeContent(context: Context, request: WriteRequest): Pro
       { id: fresh.id, updatedAt: after.updatedAt },
     );
   }
-  return { status: "written", note: after, details, warning: warningOf([titleChange(fresh, after), OPEN_NOTE_WARNING]) ?? OPEN_NOTE_WARNING };
+  return {
+    status: "written",
+    note: after,
+    details,
+    warning: warningOf([titleChange(fresh, after), OPEN_NOTE_WARNING]) ?? OPEN_NOTE_WARNING,
+  };
 }

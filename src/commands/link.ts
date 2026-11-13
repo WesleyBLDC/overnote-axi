@@ -46,15 +46,21 @@ export const command: CommandSpec = {
     const into = flagString(args, "into");
     const text = flagString(args, "text");
     const prepend = flagBoolean(args, "prepend");
-    if (into !== undefined && into.trim() === "") throw validation("link --into needs a note", [`overnote-axi link ${quoted} --into current`]);
-    if (text !== undefined && text.trim() === "") throw validation("link --text must not be empty", [`overnote-axi link ${quoted}`]);
+    if (into !== undefined && into.trim() === "")
+      throw validation("link --into needs a note", [`overnote-axi link ${quoted} --into current`]);
+    if (text !== undefined && text.trim() === "")
+      throw validation("link --text must not be empty", [`overnote-axi link ${quoted}`]);
     if (prepend && into === undefined) {
-      throw validation("link --prepend only applies with --into", [`overnote-axi link ${quoted} --into <note> --prepend`]);
+      throw validation("link --prepend only applies with --into", [
+        `overnote-axi link ${quoted} --into <note> --prepend`,
+      ]);
     }
 
     if (into === undefined) {
       // Printing a link reads only, so a trashed note still gets its link.
-      const linked = context.reader().snapshot((reader) => resolveNote(reader, ref, { allowTrashed: true, command: "link" }));
+      const linked = context
+        .reader()
+        .snapshot((reader) => resolveNote(reader, ref, { allowTrashed: true, command: "link" }));
       return ok(renderDetail({ link: linkFields(linked, text) }));
     }
 
@@ -79,12 +85,22 @@ export const command: CommandSpec = {
     }).catch((error: unknown) => {
       // Only the target's resolution names --into, and its hints keep the linked note and the
       // --into flag; a missing linked note keeps its own error.
-      if (!targetResolved && error instanceof AxiError && (error.code === "NOTE_NOT_FOUND" || error.code === "VALIDATION_ERROR")) {
-        const words = into.trim().replace(/^title:/i, "").trim();
+      if (
+        !targetResolved &&
+        error instanceof AxiError &&
+        (error.code === "NOTE_NOT_FOUND" || error.code === "VALIDATION_ERROR")
+      ) {
+        const words = into
+          .trim()
+          .replace(/^title:/i, "")
+          .trim();
         const hints = [
           ...(words === ""
             ? []
-            : [`overnote-axi search ${shellQuote(words)}`, `overnote-axi link ${quoted} --into ${shellQuote(`title:${words}`)}`]),
+            : [
+                `overnote-axi search ${shellQuote(words)}`,
+                `overnote-axi link ${quoted} --into ${shellQuote(`title:${words}`)}`,
+              ]),
           "overnote-axi list",
         ];
         if (error.code === "VALIDATION_ERROR") throw validation(error.message, hints);
@@ -99,9 +115,13 @@ export const command: CommandSpec = {
       into: note.id,
       title: displayTitle(note),
       at: prepend ? "start" : "end",
-      ...(outcome.status === "no-op" ? { result: noOp(`the note already ${prepend ? "starts" : "ends"} with this link`) } : {}),
+      ...(outcome.status === "no-op"
+        ? { result: noOp(`the note already ${prepend ? "starts" : "ends"} with this link`) }
+        : {}),
       updatedAt: note.updatedAt,
     };
-    return ok(renderDetail({ linked: linkedBlock, warning: outcome.status === "written" ? outcome.warning : undefined }));
+    return ok(
+      renderDetail({ linked: linkedBlock, warning: outcome.status === "written" ? outcome.warning : undefined }),
+    );
   },
 };

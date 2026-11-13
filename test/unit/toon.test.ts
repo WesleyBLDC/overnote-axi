@@ -21,13 +21,18 @@ describe("encode", () => {
           { id: "01B", title: "Plan, then ship", chars: 0 },
         ],
       }),
-    ).toBe(['notes[2]{id,title,chars}:', "  01A,Fix auth bug,12", '  01B,"Plan, then ship",0'].join("\n"));
+    ).toBe(["notes[2]{id,title,chars}:", "  01A,Fix auth bug,12", '  01B,"Plan, then ship",0'].join("\n"));
   });
 
   it("uses nested field groups for uniform object columns", () => {
-    expect(encode({ rows: [{ id: 1, at: { d: 2 } }, { id: 2, at: { d: 3 } }] })).toBe(
-      "rows[2]{id,at{d}}:\n  1,2\n  2,3",
-    );
+    expect(
+      encode({
+        rows: [
+          { id: 1, at: { d: 2 } },
+          { id: 2, at: { d: 3 } },
+        ],
+      }),
+    ).toBe("rows[2]{id,at{d}}:\n  1,2\n  2,3");
   });
 
   it("uses keyed tabular form for objects of uniform objects", () => {

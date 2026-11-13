@@ -98,7 +98,11 @@ describe("duplicate", () => {
     const { code, out } = await h.run(["duplicate", source.id, "--suffix", " (draft)"]);
     expect(code).toBe(0);
     const copy = h.fakes.store.live().find((note) => note.id !== source.id)!;
-    expect(copy).toMatchObject({ title: "Plan (draft)", markdown: "# Plan (draft)\n\n- milk", text: "Plan (draft)\n\nmilk" });
+    expect(copy).toMatchObject({
+      title: "Plan (draft)",
+      markdown: "# Plan (draft)\n\n- milk",
+      text: "Plan (draft)\n\nmilk",
+    });
     expect(splitLines(out)).toEqual([
       "duplicated:",
       `  id: ${copy.id}`,
@@ -113,7 +117,12 @@ describe("duplicate", () => {
     expect(h.writes()).toEqual(["duplicate"]);
     const [id, content] = h.fakes.writer.calls.find((call) => call.method === "duplicate")!.args;
     expect(id).toBe(source.id);
-    expect(content).toEqual({ rawContent: copy.rawContent, markdown: copy.markdown, text: copy.text, title: copy.title });
+    expect(content).toEqual({
+      rawContent: copy.rawContent,
+      markdown: copy.markdown,
+      text: copy.text,
+      title: copy.title,
+    });
     expect(h.stored(source.id).markdown).toBe("# Plan\n\n- milk");
   });
 
@@ -156,7 +165,9 @@ describe("duplicate", () => {
       h.fakes.store.helperVersion = version;
       const { code, out } = await h.run(["duplicate", source.id, "--suffix", " copy"]);
       expect(code).toBe(1);
-      expect(out).toContain(`needs Overnote helper 0.5.0 or newer, and the running helper is ${version}; update Overnote, then run overnote-axi open`);
+      expect(out).toContain(
+        `needs Overnote helper 0.5.0 or newer, and the running helper is ${version}; update Overnote, then run overnote-axi open`,
+      );
       expect(out).toContain("code: HELPER_ERROR");
       expect(out).toContain("  overnote-axi open\n");
       expect(out).toContain(`  overnote-axi duplicate ${source.id}\n`);
@@ -225,7 +236,9 @@ describe("delete and recover", () => {
       `  overnote-axi pin ${note.id}`,
     ]);
     expect(h.stored(note.id).deletedAt).toBeNull();
-    expect((await h.run(["recover", note.id])).out).toBe(`recovered: ${note.id} Back (no-op; not in Recently Deleted)\n`);
+    expect((await h.run(["recover", note.id])).out).toBe(
+      `recovered: ${note.id} Back (no-op; not in Recently Deleted)\n`,
+    );
   });
 
   it("erases with --permanent and a full id, trashing a live note first", async () => {
