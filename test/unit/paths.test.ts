@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   DEFAULT_SUPPORT_SUBPATH,
+  SHARED_SUPPORT_SUBPATH,
   defaultRuntimeDir,
   isTrustedRuntimeDir,
   isTrustedSocket,
@@ -17,12 +18,22 @@ import { assertIsolated } from "../fixtures/guard.js";
 describe("resolvePaths", () => {
   it("uses the app defaults without overrides", () => {
     expect(resolvePaths({ env: {}, home: "/Users/someone", uid: 501 })).toEqual({
-      supportDir: `/Users/someone/${DEFAULT_SUPPORT_SUBPATH}`,
-      database: `/Users/someone/${DEFAULT_SUPPORT_SUBPATH}/notes.sqlite`,
+      supportDir: `/Users/someone/${SHARED_SUPPORT_SUBPATH}`,
+      database: `/Users/someone/${SHARED_SUPPORT_SUBPATH}/notes.sqlite`,
       runtimeDir: "/tmp/overnote-501",
       socket: "/tmp/overnote-501/helper.sock",
     });
     expect(defaultRuntimeDir(42)).toBe("/tmp/overnote-42");
+  });
+
+  it("prefers the shared folder's database, then the legacy one", () => {
+    const home = "/Users/someone";
+    const shared = `${home}/${SHARED_SUPPORT_SUBPATH}/notes.sqlite`;
+    const legacy = `${home}/${DEFAULT_SUPPORT_SUBPATH}/notes.sqlite`;
+    const pick = (files: string[]) => resolvePaths({ env: {}, home, uid: 501 }, (f) => files.includes(f)).database;
+    expect(pick([shared, legacy])).toBe(shared);
+    expect(pick([legacy])).toBe(legacy);
+    expect(pick([])).toBe(shared);
   });
 
   it("honors OVERNOTE_SUPPORT_DIR and OVERNOTE_RUNTIME_DIR", () => {
@@ -41,7 +52,7 @@ describe("resolvePaths", () => {
 
   it("ignores blank overrides and resolves relative ones", () => {
     const paths = resolvePaths({ env: { OVERNOTE_SUPPORT_DIR: "  ", OVERNOTE_RUNTIME_DIR: "rel/run" }, home: "/h", uid: 7 });
-    expect(paths.supportDir).toBe(`/h/${DEFAULT_SUPPORT_SUBPATH}`);
+    expect(paths.supportDir).toBe(`/h/${SHARED_SUPPORT_SUBPATH}`);
     expect(paths.runtimeDir).toBe(path.resolve("rel/run"));
   });
 
