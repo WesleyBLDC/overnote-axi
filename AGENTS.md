@@ -4,6 +4,7 @@
 
 - [docs/DESIGN.md](docs/DESIGN.md) is the design of record: command surface, output, errors, safety, testing, and the module map.
 - Overnote's `docs/architecture.md` (in the Overnote checkout) defines the socket protocol, data types, and database schema this CLI relies on.
+- [docs/architecture/system-design.md](docs/architecture/system-design.md) shows where this CLI sits in the whole Overnote system (C4 views and data flows); it is a copy of the one in the Overnote repository.
 
 ## Rules
 
@@ -17,6 +18,7 @@
 - Every command module declares its flags in its `CommandSpec`; do not parse argv by hand.
 - Prose (docs, comments, messages, help text): never use dashes as punctuation (hyphens inside compound words are fine), and put each sentence of a long Markdown file on its own line.
 - `npm run check` must pass before a commit; treat lint errors, failing tests, and flaky tests as defects.
+- Work on a branch and open a pull request; never push to `main` or force push.
 - Clean room: reuse code only from the public Overnote repository.
 
 A lead session reads `lead.toml` and the rules it names; workers can ignore it.
