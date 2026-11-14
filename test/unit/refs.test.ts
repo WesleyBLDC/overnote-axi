@@ -106,9 +106,9 @@ describe("resolveNote", () => {
     expect(error.code).toBe("AMBIGUOUS_NOTE");
     expect(error.message).toBe(`'01JAB00000' matches 7 notes; showing ${MAX_CANDIDATES}; ${SUFFIX_ADVICE}`);
     expect(error.suggestions).toEqual(["overnote-axi read <id>"]);
-    expect(failure(() => resolveNote(reader, "01JAB00000", { allowTrashed: true, command: "delete" })).suggestions).toEqual([
-      "overnote-axi delete <id>",
-    ]);
+    expect(
+      failure(() => resolveNote(reader, "01JAB00000", { allowTrashed: true, command: "delete" })).suggestions,
+    ).toEqual(["overnote-axi delete <id>"]);
     const candidates = error.details.candidates as { id: string; title: string; state: string }[];
     expect(candidates).toHaveLength(MAX_CANDIDATES);
     expect(candidates[0]).toEqual({ id: notes[0]!.id, title: "Note 0", state: "live" });
@@ -116,8 +116,8 @@ describe("resolveNote", () => {
     expect(missing.code).toBe("NOTE_NOT_FOUND");
     expect(missing.message).toBe("no note matches 'ZZZZZZ'");
     expect(missing.suggestions).toEqual(["overnote-axi list"]);
-    expect(failure(() => resolveNote(reader, "ZZZZZZ", { allowTrashed: true, command: "recover" })).suggestions).toEqual([
-      "overnote-axi trash",
-    ]);
+    expect(
+      failure(() => resolveNote(reader, "ZZZZZZ", { allowTrashed: true, command: "recover" })).suggestions,
+    ).toEqual(["overnote-axi trash"]);
   });
 });

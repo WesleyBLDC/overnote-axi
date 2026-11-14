@@ -18,7 +18,13 @@ import { PROBE_TIMEOUT_MS } from "../../src/helper/rpc-client.js";
 import { openReader } from "../../src/store/readonly-db.js";
 import { resolveNote } from "../../src/store/refs.js";
 import { assertIsolated } from "../fixtures/guard.js";
-import { HELPER_MISSING, helperBinary, helperSchemaVersion, startTempHelper, type TempHelper } from "../fixtures/temp-helper.js";
+import {
+  HELPER_MISSING,
+  helperBinary,
+  helperSchemaVersion,
+  startTempHelper,
+  type TempHelper,
+} from "../fixtures/temp-helper.js";
 
 const uid = os.userInfo().uid;
 const available = helperBinary() !== null;
@@ -28,9 +34,16 @@ function content(body: string): NoteContent {
   const lines = body.split("\n");
   const doc = {
     type: "doc",
-    content: lines.map((line) => (line ? { type: "paragraph", content: [{ type: "text", text: line }] } : { type: "paragraph" })),
+    content: lines.map((line) =>
+      line ? { type: "paragraph", content: [{ type: "text", text: line }] } : { type: "paragraph" },
+    ),
   };
-  return { rawContent: JSON.stringify(doc), markdown: body, text: body, title: lines.find((line) => line.trim())?.trim() ?? "" };
+  return {
+    rawContent: JSON.stringify(doc),
+    markdown: body,
+    text: body,
+    title: lines.find((line) => line.trim())?.trim() ?? "",
+  };
 }
 
 async function codeOf(promise: Promise<unknown>): Promise<string | undefined> {
@@ -75,7 +88,12 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     expect(probe).toEqual({ state: "running", version: expect.any(String), pid: helper.pid });
     expect(await writer.ping()).toEqual({ version: probe.state === "running" ? probe.version : "", pid: helper.pid });
     const status = await writer.status();
-    expect(status).toMatchObject({ pid: helper.pid, schemaVersion: schema(), noteCount: 0, backupDir: helper.backupDir });
+    expect(status).toMatchObject({
+      pid: helper.pid,
+      schemaVersion: schema(),
+      noteCount: 0,
+      backupDir: helper.backupDir,
+    });
   });
 
   it("writes through the helper and reads the same state back from SQLite", async () => {
@@ -141,7 +159,12 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     expect(await codeOf(writer.permanentlyDelete(loose.id))).toBe("NOTE_NOT_FOUND");
 
     const copy = await writer.duplicate(first.id);
-    expect(copy).toMatchObject({ title: first.title, markdown: first.markdown, rawContent: first.rawContent, pinned: null });
+    expect(copy).toMatchObject({
+      title: first.title,
+      markdown: first.markdown,
+      rawContent: first.rawContent,
+      pinned: null,
+    });
     await writer.trash(copy.id);
     await writer.trash(first.id);
     expect(await writer.emptyTrash()).toBe(2);

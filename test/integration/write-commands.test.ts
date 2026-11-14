@@ -195,7 +195,9 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
 
     expect((await run(["link", groceries, "--into", sync])).code).toBe(0);
     expect(stored(sync).markdown).toBe(`Weekly sync\n\n[Groceries](${noteDeeplink(groceries)})`);
-    expect((await run(["link", groceries, "--into", sync])).out).toContain("(no-op; the note already ends with this link)");
+    expect((await run(["link", groceries, "--into", sync])).out).toContain(
+      "(no-op; the note already ends with this link)",
+    );
     expect((await run(["link", sync, "--into", sync])).code).toBe(2);
   });
 
@@ -218,7 +220,9 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     expect(stored(a).deletedAt).not.toBeNull();
     expect((await run(["pin", a])).out).toContain("code: NOTE_TRASHED");
     expect((await run(["update", a, "--content", "x"])).out).toContain("code: NOTE_TRASHED");
-    expect((await run(["recover", a])).out).toBe(`recovered: ${a} Pin A\nhelp[2]:\n  overnote-axi read ${a}\n  overnote-axi pin ${a}\n`);
+    expect((await run(["recover", a])).out).toBe(
+      `recovered: ${a} Pin A\nhelp[2]:\n  overnote-axi read ${a}\n  overnote-axi pin ${a}\n`,
+    );
     expect(stored(a)).toMatchObject({ deletedAt: null, pinned: null });
 
     const erased = await run(["delete", copyId, "--permanent"]);
@@ -229,14 +233,20 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     await run(["delete", b]);
     const listing = await run(["trash"]);
     expect(listing.out).toContain("count: 2 of 2 notes in Recently Deleted");
-    expect((await run(["trash", "--empty", "--permanent", "--expected-count", "3"])).out).toContain("code: STALE_WRITE");
-    expect((await run(["trash", "--empty", "--permanent", "--expected-count", "2"])).out).toBe("emptied: 2 notes erased\n");
+    expect((await run(["trash", "--empty", "--permanent", "--expected-count", "3"])).out).toContain(
+      "code: STALE_WRITE",
+    );
+    expect((await run(["trash", "--empty", "--permanent", "--expected-count", "2"])).out).toBe(
+      "emptied: 2 notes erased\n",
+    );
     expect((await run(["trash"])).out).toBe("trash: 0 notes in Recently Deleted\n");
   });
 
   it("writes a duplicate's suffix into its title line, so a later edit keeps the title", async () => {
     const shown = await openElsewhere();
-    const source = idOf((await run(["create", "--title", "Groceries", "--content", "**milk**  \neggs\n\n- [ ] bread"])).out);
+    const source = idOf(
+      (await run(["create", "--title", "Groceries", "--content", "**milk**  \neggs\n\n- [ ] bread"])).out,
+    );
     const before = stored(source);
 
     const copy = await run(["duplicate", source, "--suffix", " copy"]);
@@ -261,7 +271,11 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
 
     // Without --suffix the copy is exact.
     const exact = idOf((await run(["duplicate", source])).out);
-    expect(stored(exact)).toMatchObject({ title: "Groceries", rawContent: before.rawContent, markdown: before.markdown });
+    expect(stored(exact)).toMatchObject({
+      title: "Groceries",
+      rawContent: before.rawContent,
+      markdown: before.markdown,
+    });
   });
 
   it("leaves current on the note it named after create and duplicate, unless create --open", async () => {

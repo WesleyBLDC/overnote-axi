@@ -33,7 +33,14 @@ process.env.XDG_CONFIG_HOME = path.join(home, ".config");
 process.env.CODEX_HOME = path.join(home, ".codex");
 process.env.OVERNOTE_AXI_OPEN_CMD = "/usr/bin/true";
 
-for (const name of ["OVERNOTE_SUPPORT_DIR", "OVERNOTE_RUNTIME_DIR", "OVERNOTE_BACKUP_DIR", "HOME", "XDG_CONFIG_HOME", "CODEX_HOME"]) {
+for (const name of [
+  "OVERNOTE_SUPPORT_DIR",
+  "OVERNOTE_RUNTIME_DIR",
+  "OVERNOTE_BACKUP_DIR",
+  "HOME",
+  "XDG_CONFIG_HOME",
+  "CODEX_HOME",
+]) {
   assertIsolated(process.env[name]!, name);
 }
 if (os.homedir() !== home) throw new Error("Test isolation: os.homedir() does not follow HOME");

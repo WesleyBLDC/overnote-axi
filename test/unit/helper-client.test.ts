@@ -117,7 +117,10 @@ describe("helper socket client", () => {
     expect(await errorOf(client.call("system.ping", {}, 30))).toBeInstanceOf(RpcTimeoutError);
     client.close();
     const missing = new RpcClient(path.join(runtimeDir, "missing.sock"));
-    expect(await errorOf(missing.call("system.ping", {}))).toMatchObject({ name: "RpcConnectionError", stage: "connect" });
+    expect(await errorOf(missing.call("system.ping", {}))).toMatchObject({
+      name: "RpcConnectionError",
+      stage: "connect",
+    });
   });
 
   it("fails in flight calls when the helper closes the connection, then reconnects", async () => {
@@ -142,7 +145,10 @@ describe("helper socket client", () => {
     await serve(echo);
     let allowed = false;
     const client = new RpcClient(socket, { beforeConnect: () => allowed });
-    expect(await errorOf(client.call("system.ping", {}))).toMatchObject({ name: "RpcConnectionError", stage: "connect" });
+    expect(await errorOf(client.call("system.ping", {}))).toMatchObject({
+      name: "RpcConnectionError",
+      stage: "connect",
+    });
     expect(received).toEqual([]);
     allowed = true;
     await client.ready();
@@ -229,7 +235,9 @@ describe("helper socket client", () => {
     const error = (await errorOf(connectWriter(socket, runtimeDir, uid))) as AxiError;
     expect(error.code).toBe("HELPER_NOT_RUNNING");
     // Opening Overnote cannot fix a refused socket, so the hint is status, which says why.
-    expect(error.message).toMatch(/^refused the Overnote helper socket because its runtime dir or socket is not private to you/);
+    expect(error.message).toMatch(
+      /^refused the Overnote helper socket because its runtime dir or socket is not private to you/,
+    );
     expect(error.suggestions).toEqual(["overnote-axi status"]);
     expect(received).toEqual([]);
     chmodSync(runtimeDir, 0o700);

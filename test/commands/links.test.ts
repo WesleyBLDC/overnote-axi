@@ -18,7 +18,10 @@ describe("links", () => {
     const standup = store.add({ body: "Standup" });
     const weekly = store.add({ body: `Weekly sync\n${markdownNoteLink("Standup", standup.id)}` });
     // Links from notes in Recently Deleted are not backlinks.
-    store.add({ body: `Raw\nraycast://extensions/wesleybldc/overnote/toggle-notes?context={"id":"${standup.id}"}`, deletedAt: 1 });
+    store.add({
+      body: `Raw\nraycast://extensions/wesleybldc/overnote/toggle-notes?context={"id":"${standup.id}"}`,
+      deletedAt: 1,
+    });
     store.notes.get(standup.id)!.markdown =
       `# Standup\n${markdownNoteLink("Groceries", groceries.id)}\n${noteDeeplink(MISSING)}\n${markdownNoteLink("again", groceries.id)}`;
 

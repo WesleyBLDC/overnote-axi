@@ -17,16 +17,21 @@ export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)
 function withoutComments(source) {
   const literals =
     /("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`|(?<=[(,=:[!&|?{};]\s*)\/(?![/*])(?:\\.|\[(?:\\.|[^\]\\\n])*\]|[^/\\\n[])+\/[a-z]*)|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
-  return source.replace(literals, (match, literal) =>
-    literal ?? " ",
-  );
+  return source.replace(literals, (match, literal) => literal ?? " ");
 }
 
 /** The TypeScript file a relative module specifier names, or null when there is none. */
 function resolveModule(from, specifier) {
   const base = path.resolve(path.dirname(from), specifier);
   const bare = base.replace(/\.js$/, "");
-  for (const candidate of [base, `${bare}.ts`, `${bare}.tsx`, `${base}.ts`, `${base}.tsx`, path.join(base, "index.ts")]) {
+  for (const candidate of [
+    base,
+    `${bare}.ts`,
+    `${bare}.tsx`,
+    `${base}.ts`,
+    `${base}.tsx`,
+    path.join(base, "index.ts"),
+  ]) {
     if (/\.tsx?$/.test(candidate) && existsSync(candidate)) return candidate;
   }
   return null;
@@ -41,7 +46,9 @@ export function exportsName(file, name, seen = new Set()) {
   if (seen.has(file)) return false;
   seen.add(file);
   const source = withoutComments(readFileSync(file, "utf8"));
-  const declared = new RegExp(`\\bexport\\s+(?:declare\\s+)?(?:async\\s+)?(?:function\\*?|const|let|var|class)\\s+${name}\\b`);
+  const declared = new RegExp(
+    `\\bexport\\s+(?:declare\\s+)?(?:async\\s+)?(?:function\\*?|const|let|var|class)\\s+${name}\\b`,
+  );
   if (declared.test(source)) return true;
   // `export type { ... }` and `type` items export types only, so they are skipped.
   for (const [, list] of source.matchAll(/\bexport\s+\{([^}]*)\}/g)) {
@@ -83,12 +90,16 @@ export function locateOvernote({ root = repoRoot, env = process.env } = {}) {
 /** True when packages/core of the checkout at `dir` has uncommitted changes to tracked files. */
 export function coreIsDirty(dir) {
   try {
-    const out = execFileSync("git", ["-C", dir, "status", "--porcelain", "--untracked-files=no", "--", "packages/core"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      timeout: GIT_TIMEOUT_MS,
-      env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
-    });
+    const out = execFileSync(
+      "git",
+      ["-C", dir, "status", "--porcelain", "--untracked-files=no", "--", "packages/core"],
+      {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        timeout: GIT_TIMEOUT_MS,
+        env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
+      },
+    );
     return out.trim() !== "";
   } catch {
     return false;

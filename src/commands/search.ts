@@ -4,7 +4,14 @@ import { flagBoolean, flagList, flagNumber, ok, type CommandSpec } from "../comm
 import type { SearchHit } from "../domain/types.js";
 import { validation } from "../errors.js";
 import { column, isoDate, joinBlocks, renderEmpty, renderHelp, renderList, type Column } from "../output/render.js";
-import { needsPinPositions, oneLine, pinPositions, summaryTitle, type PinPositions, type SearchField } from "./note-columns.js";
+import {
+  needsPinPositions,
+  oneLine,
+  pinPositions,
+  summaryTitle,
+  type PinPositions,
+  type SearchField,
+} from "./note-columns.js";
 import { DEFAULT_SEARCH_FIELDS, fieldsFlag, limitFlag, SEARCH_FIELDS } from "./shared.js";
 
 export const DEFAULT_SEARCH_LIMIT = 20;

@@ -27,7 +27,8 @@ export const MAX_CANDIDATES = 5;
 const MAX_COUNTED = 1000;
 
 /** Why an id suffix beats a prefix: shown only with AMBIGUOUS_NOTE for a fragment and a too short fragment. */
-export const SUFFIX_ADVICE = "ULID prefixes are creation timestamps that nearby notes share; pass the last 6 or more characters of the id";
+export const SUFFIX_ADVICE =
+  "ULID prefixes are creation timestamps that nearby notes share; pass the last 6 or more characters of the id";
 
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
 const ID_CHARS = /^[0-9A-HJKMNP-TV-Z]+$/i;
@@ -68,16 +69,18 @@ export function parseRef(raw: string, options?: Pick<ResolveOptions, "command">)
   if (ULID.test(value)) return { kind: "id", id: value.toUpperCase() };
   if (value.slice(0, TITLE_PREFIX.length).toLowerCase() === TITLE_PREFIX) {
     const title = value.slice(TITLE_PREFIX.length).trim();
-    if (title === "") throw validation("title: needs the note's title after it", ["overnote-axi read title:<exact title>"]);
+    if (title === "")
+      throw validation("title: needs the note's title after it", ["overnote-axi read title:<exact title>"]);
     return { kind: "title", title };
   }
   if (value.length >= MIN_FRAGMENT_LENGTH && value.length < 26 && ID_CHARS.test(value)) {
     return { kind: "fragment", fragment: value.toUpperCase() };
   }
   if (ID_CHARS.test(value) && value.length < MIN_FRAGMENT_LENGTH) {
-    throw validation(`an id fragment needs at least ${MIN_FRAGMENT_LENGTH} characters (got ${quoted(value)}); ${SUFFIX_ADVICE}`, [
-      listHint(scope),
-    ]);
+    throw validation(
+      `an id fragment needs at least ${MIN_FRAGMENT_LENGTH} characters (got ${quoted(value)}); ${SUFFIX_ADVICE}`,
+      [listHint(scope)],
+    );
   }
   throw validation(`${quoted(value)} is not a note reference`, [
     searchHint(value, scope),
@@ -94,13 +97,18 @@ function ambiguous(raw: string, page: Page<NoteSummary>, ref: NoteRef, scope: Sc
   const total = page.total > MAX_COUNTED ? `more than ${MAX_COUNTED}` : String(page.total);
   const showing = page.total > shown.length ? `; showing ${shown.length}` : "";
   const advice = ref.kind === "fragment" ? `; ${SUFFIX_ADVICE}` : "";
-  return axiError(`${quoted(raw)} matches ${total} notes${showing}${advice}`, "AMBIGUOUS_NOTE", [`overnote-axi ${scope.command} <id>`], {
-    candidates: shown.map((note) => ({
-      id: note.id,
-      title: displayTitle({ title: note.title, text: note.preview }),
-      state: note.deletedAt === null ? "live" : "trashed",
-    })),
-  });
+  return axiError(
+    `${quoted(raw)} matches ${total} notes${showing}${advice}`,
+    "AMBIGUOUS_NOTE",
+    [`overnote-axi ${scope.command} <id>`],
+    {
+      candidates: shown.map((note) => ({
+        id: note.id,
+        title: displayTitle({ title: note.title, text: note.preview }),
+        state: note.deletedAt === null ? "live" : "trashed",
+      })),
+    },
+  );
 }
 
 /** The most recently updated live note (the app's fallback for `current`), or null. */
@@ -110,7 +118,8 @@ function mostRecentLive(reader: NotesReader): Note | null {
   const page = reader.list({ limit: pinned + 1 });
   let best: NoteSummary | undefined;
   for (const note of page.items) {
-    if (!best || note.updatedAt > best.updatedAt || (note.updatedAt === best.updatedAt && note.id < best.id)) best = note;
+    if (!best || note.updatedAt > best.updatedAt || (note.updatedAt === best.updatedAt && note.id < best.id))
+      best = note;
   }
   return best ? reader.get(best.id) : null;
 }
@@ -141,7 +150,14 @@ function find(reader: NotesReader, raw: string, ref: NoteRef, scope: Scope): Not
       const live = matches.filter((note) => note.deletedAt === null);
       // Live notes win over trashed ones with the same title.
       const pool = live.length > 0 ? live : matches;
-      return pick(reader, raw, ref, { items: pool, total: pool.length }, [searchHint(ref.title, scope), listHint(scope)], scope);
+      return pick(
+        reader,
+        raw,
+        ref,
+        { items: pool, total: pool.length },
+        [searchHint(ref.title, scope), listHint(scope)],
+        scope,
+      );
     }
     case "fragment": {
       const page = reader.findByIdFragment(ref.fragment, MAX_CANDIDATES);
@@ -168,9 +184,14 @@ function pick(
 
 /** The one NOTE_TRASHED error every command throws for a note in Recently Deleted. */
 export function trashedError(note: Pick<Note, "id" | "title" | "text">): AxiError {
-  return axiError(`note ${quoted(displayTitle(note))} is in Recently Deleted`, "NOTE_TRASHED", [`overnote-axi recover ${note.id}`], {
-    id: note.id,
-  });
+  return axiError(
+    `note ${quoted(displayTitle(note))} is in Recently Deleted`,
+    "NOTE_TRASHED",
+    [`overnote-axi recover ${note.id}`],
+    {
+      id: note.id,
+    },
+  );
 }
 
 export function resolveNote(reader: NotesReader, raw: string, options: ResolveOptions): Note {

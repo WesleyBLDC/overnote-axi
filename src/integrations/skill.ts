@@ -75,13 +75,28 @@ export function repoSkill(): string {
 const EXAMPLES: readonly (readonly [comment: string, line: string])[] = [
   ["Start here: helper state, counts, current, pinned and recent notes", "overnote-axi"],
   ["Find notes by title or text (title matches first)", 'overnote-axi search "standup"'],
-  ["Read the note open in Overnote (else the newest note), then the whole of a long one by id suffix", "overnote-axi read current"],
+  [
+    "Read the note open in Overnote (else the newest note), then the whole of a long one by id suffix",
+    "overnote-axi read current",
+  ],
   ["", "overnote-axi read K9QW7Z --full"],
-  ["Create a note: the title becomes its first line", 'overnote-axi create --title "Trip ideas" --content "As of Oct 20."'],
-  ["Append a line (append is the default mode and keeps every existing block)", 'overnote-axi update K9QW7Z --content "- [ ] call Sam"'],
-  ["Append a dated section written to a file first, such as ## Oct 20: Follow ups", "overnote-axi update K9QW7Z --content-file /tmp/section.md"],
+  [
+    "Create a note: the title becomes its first line",
+    'overnote-axi create --title "Trip ideas" --content "As of Oct 20."',
+  ],
+  [
+    "Append a line (append is the default mode and keeps every existing block)",
+    'overnote-axi update K9QW7Z --content "- [ ] call Sam"',
+  ],
+  [
+    "Append a dated section written to a file first, such as ## Oct 20: Follow ups",
+    "overnote-axi update K9QW7Z --content-file /tmp/section.md",
+  ],
   ["Refresh the As of line under the title", 'overnote-axi edit K9QW7Z --old "As of Oct 20." --new "As of Oct 21."'],
-  ["Check off a task, guarded by the updatedAt that read printed", 'overnote-axi edit K9QW7Z --old "- [ ] call Sam" --new "- [x] call Sam" --expected-updated-at 1792543271491'],
+  [
+    "Check off a task, guarded by the updatedAt that read printed",
+    'overnote-axi edit K9QW7Z --old "- [ ] call Sam" --new "- [x] call Sam" --expected-updated-at 1792543271491',
+  ],
   ["Link one note into another", "overnote-axi link M1CX4P --into K9QW7Z"],
   ["Organize", "overnote-axi pin K9QW7Z"],
   ["Move to Recently Deleted, and bring it back", "overnote-axi delete K9QW7Z"],
@@ -102,10 +117,16 @@ const MARKDOWN_SUBSET: readonly string[] = [
 const ERRORS = [
   [["STALE_WRITE"], "the note changed since you read it; read it again, then retry with the new `updatedAt`."],
   [["LOSSY_REWRITE"], "the rewrite would drop content markdown cannot hold; append instead, or narrow `--old`."],
-  [["HELPER_NOT_RUNNING"], "Overnote is closed or its socket was refused; follow the hint (`overnote-axi open` to start it, or `overnote-axi status` to see why it was refused), then retry the write."],
+  [
+    ["HELPER_NOT_RUNNING"],
+    "Overnote is closed or its socket was refused; follow the hint (`overnote-axi open` to start it, or `overnote-axi status` to see why it was refused), then retry the write.",
+  ],
   [["AMBIGUOUS_NOTE", "AMBIGUOUS_TEXT"], "pick a full id from the candidates, or add context to `--old`."],
   [["NOTE_TRASHED"], "the note is in Recently Deleted; recover it only if the user wants it back."],
-  [["OUTCOME_UNKNOWN", "HELPER_TIMEOUT"], "the write may have landed (a `HELPER_TIMEOUT` on `create` or `duplicate` included); run `overnote-axi read <id>` (or `overnote-axi list --sort created` after `create` or `duplicate`) before any retry."],
+  [
+    ["OUTCOME_UNKNOWN", "HELPER_TIMEOUT"],
+    "the write may have landed (a `HELPER_TIMEOUT` on `create` or `duplicate` included); run `overnote-axi read <id>` (or `overnote-axi list --sort created` after `create` or `duplicate`) before any retry.",
+  ],
 ] as const satisfies readonly (readonly [codes: readonly ErrorCode[], advice: string])[];
 
 function errorLine([codes, advice]: (typeof ERRORS)[number]): string {

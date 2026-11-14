@@ -25,7 +25,9 @@ function key(name: string): string {
 const HEADER = /^\s*\[\[?\s*([^\]]*?)\s*\]\]?\s*(?:#.*)?$/;
 const FEATURES_TABLE = new RegExp(`^${key("features")}$`);
 const HOOKS_KEY = new RegExp(`^(\\s*${key("hooks")}\\s*=\\s*)([^#]*?)(\\s*(?:#.*)?)$`);
-const DOTTED_HOOKS_KEY = new RegExp(`^(\\s*${key("features")}\\s*\\.\\s*${key("hooks")}\\s*=\\s*)([^#]*?)(\\s*(?:#.*)?)$`);
+const DOTTED_HOOKS_KEY = new RegExp(
+  `^(\\s*${key("features")}\\s*\\.\\s*${key("hooks")}\\s*=\\s*)([^#]*?)(\\s*(?:#.*)?)$`,
+);
 const INLINE_FEATURES = new RegExp(`^\\s*${key("features")}\\s*=`);
 
 function setTrue(line: string, pattern: RegExp): { line: string; changed: boolean } {

@@ -60,14 +60,20 @@ describe("parseArgs", () => {
     expect(usageError(() => parseArgs(spec, ["n1", "--ful", "--content", "- [ ] task"])).suggestions[0]).toBe(
       'overnote-axi demo n1 --full --content "<markdown>"',
     );
-    expect(usageError(() => parseArgs(spec, ["n1", "--contnt=secret"])).suggestions[0]).toBe('overnote-axi demo n1 --content "<markdown>"');
+    expect(usageError(() => parseArgs(spec, ["n1", "--contnt=secret"])).suggestions[0]).toBe(
+      'overnote-axi demo n1 --content "<markdown>"',
+    );
     expect(usageError(() => parseArgs(spec, ["n1", "--limt=3"])).suggestions[0]).toBe("overnote-axi demo n1 --limit=3");
   });
 
   it("suggests the closest value for a choice or list flag", () => {
     const sort = usageError(() => parseArgs(spec, ["n1", "--sort", "updatd", "--full"]));
     expect(sort.message).toBe("flag --sort does not accept updatd (did you mean updated?)");
-    expect(sort.suggestions).toEqual(["overnote-axi demo n1 --sort updated --full", "valid values: updated, created", "overnote-axi demo --help"]);
+    expect(sort.suggestions).toEqual([
+      "overnote-axi demo n1 --sort updated --full",
+      "valid values: updated, created",
+      "overnote-axi demo --help",
+    ]);
     const fields = usageError(() => parseArgs(spec, ["n1", "--fields=id,titel"]));
     expect(fields.message).toBe("flag --fields does not accept titel (did you mean title?)");
     expect(fields.suggestions[0]).toBe("overnote-axi demo n1 --fields=id,title");
@@ -102,7 +108,11 @@ describe("parseArgs", () => {
     };
     const error = usageError(() => parseArgs(setup, ["skil"]));
     expect(error.message).toBe("target does not accept skil (did you mean skill?)");
-    expect(error.suggestions).toEqual(["overnote-axi setup skill", "valid values: hooks, skill", "overnote-axi setup [<target>] [flags]"]);
+    expect(error.suggestions).toEqual([
+      "overnote-axi setup skill",
+      "valid values: hooks, skill",
+      "overnote-axi setup [<target>] [flags]",
+    ]);
   });
 
   it("rejects short flags", () => {
@@ -134,8 +144,12 @@ describe("parseArgs", () => {
       "valid values: updated, created",
       "overnote-axi demo --help",
     ]);
-    expect(usageError(() => parseArgs(spec, ["n1", "--fields", "body"])).suggestions.at(-1)).toBe("overnote-axi demo --help");
-    expect(usageError(() => parseArgs(spec, ["n1", "--fields", "id,"])).suggestions.at(-1)).toBe("overnote-axi demo --help");
+    expect(usageError(() => parseArgs(spec, ["n1", "--fields", "body"])).suggestions.at(-1)).toBe(
+      "overnote-axi demo --help",
+    );
+    expect(usageError(() => parseArgs(spec, ["n1", "--fields", "id,"])).suggestions.at(-1)).toBe(
+      "overnote-axi demo --help",
+    );
   });
 
   it("states one sided bounds and the declared default", () => {
@@ -218,7 +232,11 @@ describe("rebuildInvocation", () => {
   });
 
   it("removes a flag set to null and quotes values that need it", () => {
-    const search: CommandSpec = { ...spec, name: "search", positionals: [{ name: "<query>", description: "", required: true }] };
+    const search: CommandSpec = {
+      ...spec,
+      name: "search",
+      positionals: [{ name: "<query>", description: "", required: true }],
+    };
     const args = parseArgs(search, ['weekly "sync"', "--limit", "5"]);
     expect(rebuildInvocation(search, args, { limit: null })).toBe('overnote-axi search "weekly \\"sync\\""');
   });

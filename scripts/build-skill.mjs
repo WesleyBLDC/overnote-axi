@@ -28,7 +28,9 @@ const result = await build({
     {
       name: "external-dynamic-imports",
       setup(builder) {
-        builder.onResolve({ filter: /.*/ }, (args) => (args.kind === "dynamic-import" ? { path: args.path, external: true } : undefined));
+        builder.onResolve({ filter: /.*/ }, (args) =>
+          args.kind === "dynamic-import" ? { path: args.path, external: true } : undefined,
+        );
       },
     },
   ],

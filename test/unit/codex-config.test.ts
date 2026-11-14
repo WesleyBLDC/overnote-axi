@@ -31,7 +31,9 @@ describe("enableCodexHooks", () => {
   });
 
   it("turns an explicit false into true on that line only", () => {
-    expect(enableCodexHooks("[features]\n  hooks=false  # off\nx = 1").text).toBe("[features]\n  hooks=true  # off\nx = 1");
+    expect(enableCodexHooks("[features]\n  hooks=false  # off\nx = 1").text).toBe(
+      "[features]\n  hooks=true  # off\nx = 1",
+    );
   });
 
   it("honors a dotted key at the top level instead of adding a duplicate table", () => {
@@ -41,7 +43,10 @@ describe("enableCodexHooks", () => {
 
   it("accepts quoted keys and table names instead of adding a duplicate key", () => {
     expect(enableCodexHooks('[features]\n"hooks" = false\n').text).toBe('[features]\n"hooks" = true\n');
-    expect(enableCodexHooks("[features]\n'hooks' = true\n")).toEqual({ text: "[features]\n'hooks' = true\n", changed: false });
+    expect(enableCodexHooks("[features]\n'hooks' = true\n")).toEqual({
+      text: "[features]\n'hooks' = true\n",
+      changed: false,
+    });
     expect(enableCodexHooks('["features"]\nx = 1\n').text).toBe('["features"]\nhooks = true\nx = 1\n');
     expect(enableCodexHooks('"features"."hooks" = false\n').text).toBe('"features"."hooks" = true\n');
     expect(() => enableCodexHooks("'features' = { hooks = true }\n")).toThrow(AxiError);

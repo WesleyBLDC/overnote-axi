@@ -16,7 +16,9 @@ export const command: CommandSpec = {
     if (note.deletedAt !== null) throw trashedError(note);
     if (note.pinned !== null) {
       const { position, total } = pinPosition(context, note.id);
-      return ok(renderDetail({ pinned: `${noteLabel(note)} (no-op; already at position ${position ?? "?"} of ${total})` }));
+      return ok(
+        renderDetail({ pinned: `${noteLabel(note)} (no-op; already at position ${position ?? "?"} of ${total})` }),
+      );
     }
     const pinned = await writer.pin(note.id);
     return ok(renderDetail({ pinned: `${noteLabel(pinned)} ${positionText(pinPosition(context, pinned.id))}` }));

@@ -73,7 +73,10 @@ function helpWordIsHelp(spec: CommandSpec, rest: readonly string[]): boolean {
 
 /** The unknown command error, with the closest command (when one is near) as the first fix. */
 function unknownCommand(name: string, rest: readonly string[]) {
-  const close = closest(name, COMMANDS.map((command) => command.name));
+  const close = closest(
+    name,
+    COMMANDS.map((command) => command.name),
+  );
   return validation(`unknown command ${name}${close ? ` (did you mean ${close}?)` : ""}`, [
     ...(close ? [correctedInvocation(close, rest, 0, 0, [])] : []),
     `valid commands: ${COMMANDS.map((command) => command.name).join(", ")}`,

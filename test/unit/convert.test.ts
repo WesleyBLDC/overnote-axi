@@ -132,7 +132,9 @@ describe("a duplicate's title suffix", () => {
     expect(copy(converter.fromMarkdown(""), "  ")).toEqual(converter.fromMarkdown(""));
     expect(fromMarkdown("**Plan**").markdown).toBe("**Plan** copy");
     expect(copy(stored([{ type: "paragraph" }, paragraph("Later")]))).toMatchObject({ title: "Later copy" });
-    const breakFirst = stored([{ type: "paragraph", content: [{ type: "hardBreak" }, { type: "text", text: "second" }] }]);
+    const breakFirst = stored([
+      { type: "paragraph", content: [{ type: "hardBreak" }, { type: "text", text: "second" }] },
+    ]);
     expect(copy(breakFirst).text).toBe("copy\nsecond");
     expect(fromMarkdown("- [ ] task one\n- [ ] two").markdown).toBe("- [ ] task one copy\n- [ ] two");
   });
@@ -140,7 +142,10 @@ describe("a duplicate's title suffix", () => {
   it("keeps the rest of the document exactly, unknown nodes included", () => {
     const note = stored([paragraph("Title"), unknownNode, collapsedToggle]);
     const content = copy(note);
-    expect(blocksOf(content.rawContent)).toEqual([paragraph("Title copy"), ...blocksOf(converter.current(note).rawContent).slice(1)]);
+    expect(blocksOf(content.rawContent)).toEqual([
+      paragraph("Title copy"),
+      ...blocksOf(converter.current(note).rawContent).slice(1),
+    ]);
     expect(copy(note, "")).toEqual(converter.current(note));
   });
 });

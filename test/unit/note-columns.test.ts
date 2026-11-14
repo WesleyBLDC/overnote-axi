@@ -55,7 +55,10 @@ describe("note columns", () => {
   it("renders every field, empty cells for missing values, each field once", () => {
     const { store } = createFakes();
     const note = store.add({ body: "Title\nbody text", pinned: 1000, lastAccessedAt: null });
-    const columns = listColumns(["id", "pinned", "accessed", "deleted", "chars", "preview", "id"], new Map([[note.id, 3]]));
+    const columns = listColumns(
+      ["id", "pinned", "accessed", "deleted", "chars", "preview", "id"],
+      new Map([[note.id, 3]]),
+    );
     expect(rows([summary(note)], columns)).toEqual([
       { id: note.id, pinned: 3, accessed: "", deleted: "", chars: 15, preview: "body text" },
     ]);

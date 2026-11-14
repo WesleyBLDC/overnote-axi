@@ -1,4 +1,14 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -57,7 +67,11 @@ describe("hookLocations", () => {
   });
 
   it("falls back to the home defaults when unset or empty", () => {
-    expect(hookLocations({ CODEX_HOME: "" }, "/h")).toEqual({ home: "/h", codexHome: "/h/.codex", xdgConfigHome: "/h/.config" });
+    expect(hookLocations({ CODEX_HOME: "" }, "/h")).toEqual({
+      home: "/h",
+      codexHome: "/h/.codex",
+      xdgConfigHome: "/h/.config",
+    });
   });
 });
 
@@ -107,7 +121,10 @@ describe("Claude Code settings.json", () => {
   });
 
   it("repairs a moved binary or a changed timeout in place", () => {
-    const stale = { matcher: "", hooks: [{ type: "command", command: '"/old/node" "/old/overnote-axi.js" home', timeout: 30 }] };
+    const stale = {
+      matcher: "",
+      hooks: [{ type: "command", command: '"/old/node" "/old/overnote-axi.js" home', timeout: 30 }],
+    };
     write(file(), JSON.stringify({ hooks: { SessionStart: [stale] } }));
     expect(installHooks(env, ["claude"])[0]!.change).toBe("updated");
     expect(readJson(file())).toEqual({ hooks: { SessionStart: [ENTRY] } });
@@ -115,7 +132,13 @@ describe("Claude Code settings.json", () => {
 
   it("removes duplicate entries left by an older install", () => {
     const twice = { matcher: "", hooks: [{ type: "command", command: COMMAND, timeout: 10 }] };
-    const shared = { matcher: "", hooks: [{ type: "command", command: "keep-me" }, { type: "command", command: COMMAND, timeout: 10 }] };
+    const shared = {
+      matcher: "",
+      hooks: [
+        { type: "command", command: "keep-me" },
+        { type: "command", command: COMMAND, timeout: 10 },
+      ],
+    };
     write(file(), JSON.stringify({ hooks: { SessionStart: [twice, shared] } }));
     expect(installHooks(env, ["claude"])[0]!.change).toBe("updated");
     expect(readJson(file())).toEqual({
@@ -150,7 +173,11 @@ describe("Claude Code settings.json", () => {
   ])("refuses %s without writing", (text, problem) => {
     write(file(), text);
     const [row] = installHooks(env, ["claude"]);
-    expect(row).toMatchObject({ change: "error", code: "IO_ERROR", reason: `settings.json ${problem}; fix it by hand, then run setup again` });
+    expect(row).toMatchObject({
+      change: "error",
+      code: "IO_ERROR",
+      reason: `settings.json ${problem}; fix it by hand, then run setup again`,
+    });
     expect(readFileSync(file(), "utf8")).toBe(text);
   });
 
@@ -182,7 +209,13 @@ describe("Claude Code settings.json", () => {
   });
 
   it("uninstall keeps other hooks in a shared group and groups the user left empty", () => {
-    const shared = { matcher: "", hooks: [{ type: "command", command: "keep-me" }, { type: "command", command: COMMAND }] };
+    const shared = {
+      matcher: "",
+      hooks: [
+        { type: "command", command: "keep-me" },
+        { type: "command", command: COMMAND },
+      ],
+    };
     const empty = { matcher: "x", hooks: [] };
     write(file(), JSON.stringify({ hooks: { SessionStart: [empty, shared] } }));
     expect(uninstallHooks(locations, ["claude"])[0]!.change).toBe("removed");
@@ -252,7 +285,9 @@ describe("SessionStart helpers", () => {
 
   it("remove is false when there is nothing of ours", () => {
     expect(removeSessionStartHook("settings.json", {})).toBe(false);
-    expect(removeSessionStartHook("settings.json", { hooks: { SessionStart: [{ hooks: [{ command: "x" }] }] } })).toBe(false);
+    expect(removeSessionStartHook("settings.json", { hooks: { SessionStart: [{ hooks: [{ command: "x" }] }] } })).toBe(
+      false,
+    );
   });
 });
 
@@ -329,7 +364,9 @@ describe("OpenCode", () => {
     installHooks(env, ["opencode"]);
     const moved = { ...env, program: ["/usr/local/bin/node", "/opt/x/dist/overnote-axi.js"] };
     expect(installHooks(moved, ["opencode"])[0]!.change).toBe("updated");
-    expect(readFileSync(file(), "utf8")).toContain('const ARGV = ["/usr/local/bin/node","/opt/x/dist/overnote-axi.js","home"');
+    expect(readFileSync(file(), "utf8")).toContain(
+      'const ARGV = ["/usr/local/bin/node","/opt/x/dist/overnote-axi.js","home"',
+    );
   });
 
   it("never overwrites or removes a plugin it did not write", () => {
@@ -337,7 +374,8 @@ describe("OpenCode", () => {
     expect(installHooks(env, ["opencode"])[0]).toMatchObject({
       change: "error",
       code: "IO_ERROR",
-      reason: "plugins/overnote-axi.js exists and was not written by setup, so it is left alone; move it away, then run setup again",
+      reason:
+        "plugins/overnote-axi.js exists and was not written by setup, so it is left alone; move it away, then run setup again",
     });
     expect(uninstallHooks(locations, ["opencode"])[0]).toEqual({
       agent: "opencode",
@@ -379,7 +417,9 @@ describe("OpenCode", () => {
     const transform = hooks["experimental.chat.system.transform"]!;
     const output = { system: [] as string[] };
     await transform({ sessionID: "s1" }, output);
-    expect(output.system).toEqual(["## Overnote notes (overnote-axi home)\nbin: overnote-axi home --limit 3 --pinned-limit 3"]);
+    expect(output.system).toEqual([
+      "## Overnote notes (overnote-axi home)\nbin: overnote-axi home --limit 3 --pinned-limit 3",
+    ]);
     const again = { system: [] as string[] };
     await transform({ sessionID: "s1" }, again);
     expect(again.system).toEqual(output.system);
@@ -399,7 +439,9 @@ describe("OpenCode", () => {
       OvernoteAxiPlugin: () => Promise<Record<string, (input: unknown, output: { system: string[] }) => Promise<void>>>;
     };
     const none = { system: [] as string[] };
-    await (await broken.OvernoteAxiPlugin())["experimental.chat.system.transform"]!({ sessionID: "s1" }, none);
+    await (
+      await broken.OvernoteAxiPlugin()
+    )["experimental.chat.system.transform"]!({ sessionID: "s1" }, none);
     expect(none.system).toEqual([]);
   });
 });
@@ -512,6 +554,8 @@ describe("renderProgram and hookCommand", () => {
   });
 
   it("renders the resolved program", () => {
-    expect(hookCommand({ binPath: temp.binPath, execPath: "/n/node", pathEnv: "" })).toBe(`"/n/node" "${realpathSync(temp.binPath)}"`);
+    expect(hookCommand({ binPath: temp.binPath, execPath: "/n/node", pathEnv: "" })).toBe(
+      `"/n/node" "${realpathSync(temp.binPath)}"`,
+    );
   });
 });
