@@ -26,9 +26,7 @@ type HelperReport =
   | { state: "error"; error: AxiError };
 
 type DatabaseReport =
-  | { state: "ok"; schema: number; counts: NoteCounts }
-  | { state: "missing" }
-  | { state: "unreadable"; error: AxiError };
+  { state: "ok"; schema: number; counts: NoteCounts } | { state: "missing" } | { state: "unreadable"; error: AxiError };
 
 /** Why no trusted socket could be reached, checked in the order the writer checks. */
 export function stoppedReason(paths: OvernotePaths, uid: number): string {
@@ -45,7 +43,8 @@ async function askHelper(context: Context): Promise<HelperReport> {
     return { state: "running", status: await writer.status() };
   } catch (error) {
     if (!(error instanceof AxiError)) throw error;
-    if (error.code === "HELPER_NOT_RUNNING") return { state: "stopped", reason: stoppedReason(context.paths(), context.uid) };
+    if (error.code === "HELPER_NOT_RUNNING")
+      return { state: "stopped", reason: stoppedReason(context.paths(), context.uid) };
     if (error.code === "HELPER_TIMEOUT") return { state: "not answering" };
     return { state: "error", error };
   }
@@ -91,7 +90,13 @@ function databaseSection(report: DatabaseReport, file: string): Record<string, u
     case "missing":
       return { path: file, state: "missing" };
     case "unreadable":
-      return { path: file, state: "unreadable", error: report.error.message, code: report.error.code, ...report.error.details };
+      return {
+        path: file,
+        state: "unreadable",
+        error: report.error.message,
+        code: report.error.code,
+        ...report.error.details,
+      };
   }
 }
 
@@ -100,7 +105,9 @@ function backupsSection(status: SystemStatus): Record<string, unknown> {
     count: status.backupCount,
     latest: status.latestBackup ? isoDate(status.latestBackup.createdAt) : "none",
     // Only worth a line when the helper is offering to restore a backup.
-    restore: status.restoreAvailable ? "available (the helper started without a database; restore it in Overnote)" : undefined,
+    restore: status.restoreAvailable
+      ? "available (the helper started without a database; restore it in Overnote)"
+      : undefined,
   };
 }
 

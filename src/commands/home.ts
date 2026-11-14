@@ -159,7 +159,11 @@ export const command: CommandSpec = {
 
     if (!data) {
       return ok(
-        joinBlocks([header(context), renderDetail({ overnote: "no notes database yet" }), renderHelp(["overnote-axi open"])]),
+        joinBlocks([
+          header(context),
+          renderDetail({ overnote: "no notes database yet" }),
+          renderHelp(["overnote-axi open"]),
+        ]),
       );
     }
 
@@ -167,8 +171,10 @@ export const command: CommandSpec = {
     // A helper that cannot take writes leads the hints, so the next write does not fail first.
     const hints = [...helperHint(view)];
     for (const hint of counts.live === 0 ? EMPTY_HOME_HINTS : HOME_HINTS) if (!hints.includes(hint)) hints.push(hint);
-    if (pinned.length < counts.pinned) hints.push(`overnote-axi list --pinned (all ${counts.pinned} ${countNoun(counts.pinned, "pinned notes")})`);
-    if (recent.length < counts.live - counts.pinned) hints.push(`overnote-axi list (all ${counts.live} ${countNoun(counts.live, "live notes")})`);
+    if (pinned.length < counts.pinned)
+      hints.push(`overnote-axi list --pinned (all ${counts.pinned} ${countNoun(counts.pinned, "pinned notes")})`);
+    if (recent.length < counts.live - counts.pinned)
+      hints.push(`overnote-axi list (all ${counts.live} ${countNoun(counts.live, "live notes")})`);
 
     return ok(
       joinBlocks([
@@ -180,7 +186,9 @@ export const command: CommandSpec = {
             pinned: counts.pinned,
             trash: counts.trashed,
             // One line, so the session hook stays in budget; status prints the update command.
-            schema: newerSchema(schema) ? `${schema}, newer than this overnote-axi was tested with (overnote-axi status)` : undefined,
+            schema: newerSchema(schema)
+              ? `${schema}, newer than this overnote-axi was tested with (overnote-axi status)`
+              : undefined,
           },
           current: current
             ? `${current.id} ${displayTitle(current)}${currentIsFallback ? " (newest; none open)" : ""}`

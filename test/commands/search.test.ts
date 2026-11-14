@@ -13,7 +13,9 @@ function search(fake: FakeContext, ...argv: string[]) {
 function seeded() {
   const fake = fakeContext();
   const { store } = fake.fakes;
-  const weekly = store.add({ body: "Weekly sync\nWe moved the standup to 9:30 so Sam can join from the train every Tuesday" });
+  const weekly = store.add({
+    body: "Weekly sync\nWe moved the standup to 9:30 so Sam can join from the train every Tuesday",
+  });
   const standup = store.add({ body: "Standup\n- [ ] demo the CLI" });
   const cafe = store.add({ body: "Café plan\nbuy beans", pinned: 1000 });
   const old = store.add({ body: "Old standup notes", deletedAt: store.clock });
@@ -124,7 +126,11 @@ describe("search", () => {
 
 describe("matchCell", () => {
   const note = (text: string) => summary({ ...fakeContext().fakes.store.add({ body: text }) });
-  const hit = (text: string, snippet: string, titleMatch = false): SearchHit => ({ note: note(text), titleMatch, snippet });
+  const hit = (text: string, snippet: string, titleMatch = false): SearchHit => ({
+    note: note(text),
+    titleMatch,
+    snippet,
+  });
 
   it("is title for a title hit", () => {
     expect(matchCell(hit("Standup", "", true))).toBe("title");

@@ -50,10 +50,19 @@ export async function readContent(args: ParsedArgs, context: Context): Promise<s
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       const reason =
-        code === "ENOENT" ? "does not exist" : code === "EISDIR" ? "is a directory" : code === "EACCES" ? "is not readable" : "could not be read";
-      throw axiError(`the content file ${file} ${reason}`, "IO_ERROR", [
-        "Check the path, or pass the markdown with --content",
-      ], { file: resolved });
+        code === "ENOENT"
+          ? "does not exist"
+          : code === "EISDIR"
+            ? "is a directory"
+            : code === "EACCES"
+              ? "is not readable"
+              : "could not be read";
+      throw axiError(
+        `the content file ${file} ${reason}`,
+        "IO_ERROR",
+        ["Check the path, or pass the markdown with --content"],
+        { file: resolved },
+      );
     }
   }
   return null;

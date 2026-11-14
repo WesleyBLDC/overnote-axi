@@ -44,7 +44,10 @@ export const command: CommandSpec = {
     const newText = flagString(args, "new");
     const usage = 'overnote-axi edit <note> --old "<exact markdown>" --new "<markdown>"';
     if (oldText === undefined || oldText === "") {
-      throw validation("edit needs --old with the exact markdown to replace", [usage, `overnote-axi read ${quoted} --full`]);
+      throw validation("edit needs --old with the exact markdown to replace", [
+        usage,
+        `overnote-axi read ${quoted} --full`,
+      ]);
     }
     if (newText === undefined) {
       throw validation("edit needs --new (pass --new= to delete the text)", [usage]);
@@ -67,15 +70,22 @@ export const command: CommandSpec = {
             reason = "already applied since --old is gone and --new is there once as whole lines";
             return null;
           }
-          throw axiError("the --old text is not in the note", "TEXT_NOT_FOUND", [`overnote-axi read ${fresh.id} --full`], {
-            id: fresh.id,
-          });
+          throw axiError(
+            "the --old text is not in the note",
+            "TEXT_NOT_FOUND",
+            [`overnote-axi read ${fresh.id} --full`],
+            {
+              id: fresh.id,
+            },
+          );
         }
         if (result.status === "ambiguous") {
-          throw axiError(`the --old text occurs ${result.matches} times`, "AMBIGUOUS_TEXT", [
-            "Add surrounding text to --old so it matches once",
-            rebuildInvocation(command, args, { all: true }),
-          ], { matches: result.matches });
+          throw axiError(
+            `the --old text occurs ${result.matches} times`,
+            "AMBIGUOUS_TEXT",
+            ["Add surrounding text to --old so it matches once", rebuildInvocation(command, args, { all: true })],
+            { matches: result.matches },
+          );
         }
         if (oldText === newText) {
           reason = "--old and --new are the same";

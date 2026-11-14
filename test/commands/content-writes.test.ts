@@ -41,7 +41,10 @@ const collapsedToggle = {
 function seedLossy(markdown: string, extra: object[]) {
   const base = converter.fromMarkdown(markdown);
   const doc = JSON.parse(base.rawContent) as { content: object[] };
-  return h.fakes.store.add({ ...base, rawContent: JSON.stringify({ type: "doc", content: [...doc.content, ...extra] }) });
+  return h.fakes.store.add({
+    ...base,
+    rawContent: JSON.stringify({ type: "doc", content: [...doc.content, ...extra] }),
+  });
 }
 
 describe("create", () => {
@@ -151,7 +154,10 @@ describe("create", () => {
   it("warns when restoring the current note fails, without failing the create", async () => {
     const shown = h.seed("Shown");
     h.fakes.store.currentNoteId = shown.id;
-    h.fakes.store.failNext("setCurrentNote", axiError("Overnote could not complete notes.setCurrentNote", "HELPER_ERROR"));
+    h.fakes.store.failNext(
+      "setCurrentNote",
+      axiError("Overnote could not complete notes.setCurrentNote", "HELPER_ERROR"),
+    );
     const { code, out } = await h.run(["create", "--content", "Agent note"]);
     expect(code).toBe(0);
     expect(out).toContain("warning: ");
@@ -187,7 +193,8 @@ describe("update", () => {
     const { code, out } = await h.run(["update", note.id, "--content", "- [ ] call Sam"]);
     expect(code).toBe(0);
     const stored = h.stored(note.id);
-    const blocks = (JSON.parse(stored.rawContent) as { content: { type: string; attrs?: { collapsed?: boolean } }[] }).content;
+    const blocks = (JSON.parse(stored.rawContent) as { content: { type: string; attrs?: { collapsed?: boolean } }[] })
+      .content;
     expect(blocks[2]).toEqual(unknownNode);
     expect(blocks[3]?.attrs?.collapsed).toBe(true);
     expect(stored.markdown.endsWith("- [ ] call Sam")).toBe(true);
@@ -203,7 +210,9 @@ describe("update", () => {
       ].join("\n"),
     );
     // The write carried the stale write token it had just read.
-    const update = h.fakes.writer.calls.find((call) => call.method === "update")?.args[0] as { expectedUpdatedAt: number };
+    const update = h.fakes.writer.calls.find((call) => call.method === "update")?.args[0] as {
+      expectedUpdatedAt: number;
+    };
     expect(update.expectedUpdatedAt).toBe(readAt);
   });
 
@@ -264,7 +273,15 @@ describe("update", () => {
     expect(out).toContain("  mode: replace\n");
     expect(h.stored(note.id).markdown).toBe("new text");
 
-    const same = await h.run(["update", note.id, "--replace", "--content", "new text", "--expected-updated-at", String(h.stored(note.id).updatedAt)]);
+    const same = await h.run([
+      "update",
+      note.id,
+      "--replace",
+      "--content",
+      "new text",
+      "--expected-updated-at",
+      String(h.stored(note.id).updatedAt),
+    ]);
     expect(same.out).toContain("(no-op; the note already has exactly this content)");
   });
 
@@ -463,7 +480,9 @@ describe("edit", () => {
     expect(stored.markdown.startsWith("- [x] ship\n- [ ] test")).toBe(true);
     expect((JSON.parse(stored.rawContent) as { content: object[] }).content.at(-1)).toEqual(unknownNode);
     expect(out).toBe(
-      ["edited:", `  id: ${note.id}`, "  title: ship", "  replaced: 1", `  updatedAt: ${stored.updatedAt}`, ""].join("\n"),
+      ["edited:", `  id: ${note.id}`, "  title: ship", "  replaced: 1", `  updatedAt: ${stored.updatedAt}`, ""].join(
+        "\n",
+      ),
     );
   });
 
@@ -510,7 +529,17 @@ describe("edit", () => {
     expect(missing.out).toContain("code: TEXT_NOT_FOUND");
     const ambiguous = await h.run(["edit", note.id, "--old", "same", "--new", "same"]);
     expect(ambiguous.out).toContain("code: AMBIGUOUS_TEXT");
-    const stale = await h.run(["edit", note.id, "--old", "same", "--new", "same", "--all", "--expected-updated-at", "1"]);
+    const stale = await h.run([
+      "edit",
+      note.id,
+      "--old",
+      "same",
+      "--new",
+      "same",
+      "--all",
+      "--expected-updated-at",
+      "1",
+    ]);
     expect(stale.out).toContain("code: STALE_WRITE");
     expect(h.writes()).toEqual([]);
   });
@@ -521,7 +550,9 @@ describe("edit", () => {
     expect(first.code).toBe(0);
     const retry = await h.run(["edit", note.id, "--old", "- [ ] ship", "--new", "- [x] ship"]);
     expect(retry.code).toBe(0);
-    expect(retry.out).toContain("  result: (no-op; already applied since --old is gone and --new is there once as whole lines)\n");
+    expect(retry.out).toContain(
+      "  result: (no-op; already applied since --old is gone and --new is there once as whole lines)\n",
+    );
     expect(h.writes()).toEqual(["update"]);
     // Deleting text has nothing to find on a retry, so it still reports TEXT_NOT_FOUND.
     await h.run(["edit", note.id, "--old", "\n- [ ] test", "--new="]);
@@ -605,7 +636,11 @@ describe("link", () => {
     const { code, out } = await h.run(["link", note.id]);
     expect(code).toBe(0);
     const url = noteDeeplink(note.id);
-    expect(splitLines(out)).toEqual(["link:", `  id: ${note.id}`, `  markdown: ${JSON.stringify(`[Groceries \\[weekly\\]](${url})`)}`]);
+    expect(splitLines(out)).toEqual([
+      "link:",
+      `  id: ${note.id}`,
+      `  markdown: ${JSON.stringify(`[Groceries \\[weekly\\]](${url})`)}`,
+    ]);
     expect(h.writes()).toEqual([]);
   });
 
@@ -685,7 +720,10 @@ describe("link", () => {
   it("surfaces helper failures from the shared write flow", async () => {
     const linked = h.seed("A");
     const target = h.seed("B");
-    h.fakes.store.failNext("update", axiError("Overnote did not answer notes.update in time; retry once", "HELPER_TIMEOUT"));
+    h.fakes.store.failNext(
+      "update",
+      axiError("Overnote did not answer notes.update in time; retry once", "HELPER_TIMEOUT"),
+    );
     const { code, out } = await h.run(["link", linked.id, "--into", target.id]);
     expect(code).toBe(1);
     expect(out).toContain("code: HELPER_TIMEOUT");

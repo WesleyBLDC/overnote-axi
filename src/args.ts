@@ -71,7 +71,13 @@ export function parseArgs(spec: CommandSpec, argv: readonly string[]): ParsedArg
     }
 
     const value = convert(spec, flag, raw, (fixed) =>
-      correctedInvocation(spec.name, argv, at, inline === undefined ? 2 : 1, inline === undefined ? [`--${flag.name}`, fixed] : [`--${flag.name}=${fixed}`]),
+      correctedInvocation(
+        spec.name,
+        argv,
+        at,
+        inline === undefined ? 2 : 1,
+        inline === undefined ? [`--${flag.name}`, fixed] : [`--${flag.name}=${fixed}`],
+      ),
     );
     if (Object.hasOwn(flags, flag.name)) {
       if (flag.type !== "list") {
@@ -83,7 +89,9 @@ export function parseArgs(spec: CommandSpec, argv: readonly string[]): ParsedArg
     }
   }
 
-  checkPositionals(spec, positionals, (index, fixed) => correctedInvocation(spec.name, argv, positionAt[index]!, 1, [fixed]));
+  checkPositionals(spec, positionals, (index, fixed) =>
+    correctedInvocation(spec.name, argv, positionAt[index]!, 1, [fixed]),
+  );
   return { positionals, flags };
 }
 
@@ -123,7 +131,10 @@ function convert(spec: CommandSpec, flag: FlagSpec, raw: string | undefined, cor
       if (bad !== undefined) {
         const close = closest(bad, flag.choices);
         const fixed = close ? parts.map((part) => (part === bad ? close : part)).join(",") : undefined;
-        throw badChoice(`flag --${flag.name} does not accept ${bad}`, close, fixed && correct(fixed), [validValues(flag.choices), help]);
+        throw badChoice(`flag --${flag.name} does not accept ${bad}`, close, fixed && correct(fixed), [
+          validValues(flag.choices),
+          help,
+        ]);
       }
     }
     return parts;
@@ -131,14 +142,25 @@ function convert(spec: CommandSpec, flag: FlagSpec, raw: string | undefined, cor
 
   if (flag.choices && !flag.choices.includes(value)) {
     const close = closest(value, flag.choices);
-    throw badChoice(`flag --${flag.name} does not accept ${value}`, close, close && correct(close), [validValues(flag.choices), help]);
+    throw badChoice(`flag --${flag.name} does not accept ${value}`, close, close && correct(close), [
+      validValues(flag.choices),
+      help,
+    ]);
   }
   return value;
 }
 
 /** A value outside a flag's or positional's choices: the corrected invocation leads when one is close. */
-function badChoice(message: string, close: string | null, corrected: string | null | undefined, rest: readonly string[]) {
-  return validation(`${message}${close ? ` (did you mean ${close}?)` : ""}`, [...(corrected ? [corrected] : []), ...rest]);
+function badChoice(
+  message: string,
+  close: string | null,
+  corrected: string | null | undefined,
+  rest: readonly string[],
+) {
+  return validation(`${message}${close ? ` (did you mean ${close}?)` : ""}`, [
+    ...(corrected ? [corrected] : []),
+    ...rest,
+  ]);
 }
 
 function validValues(choices: readonly string[]): string {
@@ -159,7 +181,11 @@ function numberHint(flag: FlagSpec): string {
   return `pass --${flag.name} ${flag.value ?? "<n>"} as a whole number${range}${fallback}`;
 }
 
-function checkPositionals(spec: CommandSpec, found: readonly string[], correct: (index: number, fixed: string) => string): void {
+function checkPositionals(
+  spec: CommandSpec,
+  found: readonly string[],
+  correct: (index: number, fixed: string) => string,
+): void {
   const specs = spec.positionals;
   const required = specs.filter((positional) => positional.required).length;
   const variadic = specs.at(-1)?.variadic === true;

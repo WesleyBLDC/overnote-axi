@@ -58,7 +58,9 @@ export const command: CommandSpec = {
     // before the write and the old helper hint can name the resolved id.
     let converter;
     if (suffix !== "") {
-      const { id } = context.reader().snapshot((reader) => resolveNote(reader, ref, { allowTrashed: true, command: "duplicate" }));
+      const { id } = context
+        .reader()
+        .snapshot((reader) => resolveNote(reader, ref, { allowTrashed: true, command: "duplicate" }));
       await requireContentHelper(await context.writer(), id);
       converter = await context.converter();
     }

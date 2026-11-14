@@ -16,7 +16,11 @@
  * addition `- call Sam`, but not the addition `Sam`, which would be a new paragraph. An empty
  * addition is never present, so callers reject empty content before asking.
  */
-export function alreadyPresent(storedMarkdown: string, normalizedAddition: string, mode: "append" | "prepend" | "top"): boolean {
+export function alreadyPresent(
+  storedMarkdown: string,
+  normalizedAddition: string,
+  mode: "append" | "prepend" | "top",
+): boolean {
   const stored = storedMarkdown.trim();
   const addition = normalizedAddition.trim();
   if (addition === "") return false;

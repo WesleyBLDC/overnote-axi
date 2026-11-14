@@ -217,6 +217,7 @@ export class RpcClient implements RpcTransport {
   }
 
   private failAll(error: Error): void {
+    // oxlint-disable-next-line unicorn/no-useless-spread -- snapshot the keys: settle() deletes from pending.
     for (const id of [...this.pending.keys()]) this.settle(id, { error });
   }
 

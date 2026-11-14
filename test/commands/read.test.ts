@@ -64,7 +64,9 @@ describe("read", () => {
   it("names the unit of a truncated text body", async () => {
     const fake = fakeContext();
     const note = fake.fakes.store.add({ body: "x".repeat(1500) });
-    expect((await read(fake, note.id, "--format", "text")).out).toContain("(truncated, showing 1200 of 1500 text chars)");
+    expect((await read(fake, note.id, "--format", "text")).out).toContain(
+      "(truncated, showing 1200 of 1500 text chars)",
+    );
   });
 
   it("prints metadata only with --meta", async () => {
@@ -90,7 +92,9 @@ describe("read", () => {
     const note = fake.fakes.store.add({ body: "Old draft", deletedAt: 1_792_100_000_000 });
     const { code, out } = await read(fake, note.id);
     expect(code).toBe(0);
-    expect(out).toBe(lines(...meta(note, { state: "trashed", deleted: isoDate(1_792_100_000_000) }), "markdown:", "  Old draft"));
+    expect(out).toBe(
+      lines(...meta(note, { state: "trashed", deleted: isoDate(1_792_100_000_000) }), "markdown:", "  Old draft"),
+    );
   });
 
   it("prints an empty body definitively", async () => {

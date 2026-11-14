@@ -85,14 +85,18 @@ describe("home", () => {
     const { out } = await home(fake, "--pinned-limit", "2", "--limit", "1");
     expect(out).toContain(`pinned[2]{id,title,updated}:\n  ${day(fake, "Standup")}\n  ${day(fake, "Groceries")}\n`);
     expect(out).toContain(`recent[1]{id,title,updated}:\n  ${day(fake, "Invoice draft")}\n`);
-    expect(out.endsWith(lines(
-      "help[5]:",
-      "  overnote-axi read <id>",
-      '  overnote-axi search "<text>"',
-      '  overnote-axi create --content "<markdown>"',
-      "  overnote-axi list --pinned (all 3 pinned notes)",
-      "  overnote-axi list (all 5 live notes)",
-    ))).toBe(true);
+    expect(
+      out.endsWith(
+        lines(
+          "help[5]:",
+          "  overnote-axi read <id>",
+          '  overnote-axi search "<text>"',
+          '  overnote-axi create --content "<markdown>"',
+          "  overnote-axi list --pinned (all 3 pinned notes)",
+          "  overnote-axi list (all 5 live notes)",
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("points at list with the total when recent rows are cut", async () => {
@@ -153,10 +157,12 @@ describe("home", () => {
   it("reports an unreadable database without failing the session", async () => {
     const fake = fakeContext({
       openReader: () => {
-        throw axiError("the notes database (schema 9) lacks columns this overnote-axi reads", "DATABASE_ERROR", [
-          "overnote-axi status",
-          UPDATE_HINT,
-        ], { schema: 9, missing: "notes.text_fold" });
+        throw axiError(
+          "the notes database (schema 9) lacks columns this overnote-axi reads",
+          "DATABASE_ERROR",
+          ["overnote-axi status", UPDATE_HINT],
+          { schema: 9, missing: "notes.text_fold" },
+        );
       },
     });
     const { code, out } = await home(fake);
@@ -205,13 +211,17 @@ describe("home", () => {
     const fake = fakeContext({ probeHelper: async () => ({ state: "stopped" }) });
     fake.fakes.store.add({ body: "Note" });
     const { out } = await home(fake);
-    expect(out.endsWith(lines(
-      "help[4]:",
-      "  overnote-axi open",
-      "  overnote-axi read <id>",
-      '  overnote-axi search "<text>"',
-      '  overnote-axi create --content "<markdown>"',
-    ))).toBe(true);
+    expect(
+      out.endsWith(
+        lines(
+          "help[4]:",
+          "  overnote-axi open",
+          "  overnote-axi read <id>",
+          '  overnote-axi search "<text>"',
+          '  overnote-axi create --content "<markdown>"',
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("says refused and hints status when the runtime dir is not private, as the writer does", async () => {
@@ -222,11 +232,17 @@ describe("home", () => {
       mkdirSync(runtimeDir, { mode: 0o755 });
       chmodSync(runtimeDir, 0o755);
       const paths = { ...fakeContext().context.paths(), runtimeDir, socket: path.join(runtimeDir, "helper.sock") };
-      const fake = fakeContext({ probeHelper: async () => ({ state: "stopped" }), paths: () => paths, uid: os.userInfo().uid });
+      const fake = fakeContext({
+        probeHelper: async () => ({ state: "stopped" }),
+        paths: () => paths,
+        uid: os.userInfo().uid,
+      });
       fake.fakes.store.add({ body: "Note" });
       const { code, out } = await home(fake);
       expect(code).toBe(0);
-      expect(out).toContain("  helper: refused (its runtime dir or socket is not private to you; overnote-axi status says why)\n");
+      expect(out).toContain(
+        "  helper: refused (its runtime dir or socket is not private to you; overnote-axi status says why)\n",
+      );
       expect(out).toContain("help[4]:\n  overnote-axi status\n");
       expect(out).not.toContain("overnote-axi open");
     } finally {

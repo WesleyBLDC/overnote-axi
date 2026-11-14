@@ -79,7 +79,11 @@ export const command: CommandSpec = {
     "updatedAt is the value to pass as --expected-updated-at to update and edit",
     `Bodies stop at ${TRUNCATE_LIMIT} characters unless --full`,
   ],
-  examples: ["overnote-axi read current", "overnote-axi read RN7Q3K --full", "overnote-axi read title:Groceries --meta"],
+  examples: [
+    "overnote-axi read current",
+    "overnote-axi read RN7Q3K --full",
+    "overnote-axi read title:Groceries --meta",
+  ],
   run: async (args, context) => {
     const full = flagBoolean(args, "full");
     const meta = flagBoolean(args, "meta");
@@ -92,7 +96,12 @@ export const command: CommandSpec = {
     for (const view of views) {
       blocks.push(renderDetail({ note: metadata(view, positions) }));
       if (meta) continue;
-      const body = truncate(format === "markdown" ? view.note.markdown : view.note.text, full, TRUNCATE_LIMIT, `${format} chars`);
+      const body = truncate(
+        format === "markdown" ? view.note.markdown : view.note.text,
+        full,
+        TRUNCATE_LIMIT,
+        `${format} chars`,
+      );
       if (body.truncated) truncated.push(view.note.id);
       // A body of only blank lines reads as empty, not as a label with nothing under it.
       blocks.push(renderTextBlock(format, body.text.trim() === "" ? "" : body.text));

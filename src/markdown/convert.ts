@@ -35,7 +35,14 @@ import {
   UNKNOWN_MARKS,
 } from "@overnote/core";
 
-import type { ComposeMode, EditOutcome, MarkdownConverter, NoteContent, RewriteLoss, StoredNote } from "../domain/types.js";
+import type {
+  ComposeMode,
+  EditOutcome,
+  MarkdownConverter,
+  NoteContent,
+  RewriteLoss,
+  StoredNote,
+} from "../domain/types.js";
 import { occurrences } from "./compose.js";
 
 function isEmptyParagraph(node: JSONContent | undefined): boolean {

@@ -52,7 +52,9 @@ function measure(argvFor: (run: number) => readonly string[], env: Readonly<Reco
 
 /** Records the measurement and checks it against its floor + budget. */
 function expectWithin(label: string, { ms, floor }: Measurement, budget: number): void {
-  report.push(`${label}: ${ms.toFixed(1)} ms (floor ${floor.toFixed(1)} + ${(ms - floor).toFixed(1)}, budget + ${budget})`);
+  report.push(
+    `${label}: ${ms.toFixed(1)} ms (floor ${floor.toFixed(1)} + ${(ms - floor).toFixed(1)}, budget + ${budget})`,
+  );
   expect(ms - floor, label).toBeLessThan(budget);
 }
 
@@ -67,13 +69,21 @@ afterAll(() => {
 
 describe("startup without data", () => {
   it.each(["--version", "-v", "-V"])("answers %s within floor + 10 ms", (flag) => {
-    expectWithin(flag, measure(() => [flag]), BUDGET_MS.version);
+    expectWithin(
+      flag,
+      measure(() => [flag]),
+      BUDGET_MS.version,
+    );
   });
 
   it.each([["--help"], ["read", "--help"], ["update", "--help"], ["setup", "--help"]])(
     "prints %j within floor + 20 ms",
     (...argv) => {
-      expectWithin(argv.join(" "), measure(() => argv), BUDGET_MS.help);
+      expectWithin(
+        argv.join(" "),
+        measure(() => argv),
+        BUDGET_MS.help,
+      );
     },
   );
 });
@@ -103,7 +113,11 @@ describe("reads on 1,000 notes", () => {
     ["read", ["read", "<target>"]],
   ] as const)("%s within floor + 40 ms", (label, argv) => {
     const resolved = argv.map((arg) => (arg === "<target>" ? target : arg));
-    expectWithin(label, measure(() => resolved, db.env()), BUDGET_MS.read);
+    expectWithin(
+      label,
+      measure(() => resolved, db.env()),
+      BUDGET_MS.read,
+    );
   });
 });
 
@@ -136,15 +150,27 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
   });
 
   it("keeps the session hook within floor + 40 ms with the helper running", () => {
-    expectWithin("home (hook payload, helper running)", measure(() => ["home", "--limit", "3", "--pinned-limit", "3"], helper.env()), BUDGET_MS.read);
+    expectWithin(
+      "home (hook payload, helper running)",
+      measure(() => ["home", "--limit", "3", "--pinned-limit", "3"], helper.env()),
+      BUDGET_MS.read,
+    );
   });
 
   it("creates a note within floor + 150 ms", () => {
-    expectWithin("create", measure((run) => ["create", "--content", `Perf ${run}`], helper.env()), BUDGET_MS.contentWrite);
+    expectWithin(
+      "create",
+      measure((run) => ["create", "--content", `Perf ${run}`], helper.env()),
+      BUDGET_MS.contentWrite,
+    );
   });
 
   it("appends with update within floor + 150 ms", () => {
-    expectWithin("update", measure((run) => ["update", target, "--content", `- line ${run}`], helper.env()), BUDGET_MS.contentWrite);
+    expectWithin(
+      "update",
+      measure((run) => ["update", target, "--content", `- line ${run}`], helper.env()),
+      BUDGET_MS.contentWrite,
+    );
   });
 
   it("edits a block within floor + 150 ms", () => {
@@ -154,10 +180,18 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
   });
 
   it("pins and unpins within floor + 60 ms", () => {
-    expectWithin("pin/unpin", measure((run) => [run % 2 === 0 ? "pin" : "unpin", target], helper.env()), BUDGET_MS.organizeWrite);
+    expectWithin(
+      "pin/unpin",
+      measure((run) => [run % 2 === 0 ? "pin" : "unpin", target], helper.env()),
+      BUDGET_MS.organizeWrite,
+    );
   });
 
   it("deletes and recovers within floor + 60 ms", () => {
-    expectWithin("delete/recover", measure((run) => [run % 2 === 0 ? "delete" : "recover", target], helper.env()), BUDGET_MS.organizeWrite);
+    expectWithin(
+      "delete/recover",
+      measure((run) => [run % 2 === 0 ? "delete" : "recover", target], helper.env()),
+      BUDGET_MS.organizeWrite,
+    );
   });
 });

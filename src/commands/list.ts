@@ -24,7 +24,11 @@ export const command: CommandSpec = {
     },
     fieldsFlag(LIST_FIELDS, DEFAULT_LIST_FIELDS),
   ],
-  examples: ["overnote-axi list", "overnote-axi list --pinned", "overnote-axi list --sort accessed --fields id,title,accessed"],
+  examples: [
+    "overnote-axi list",
+    "overnote-axi list --pinned",
+    "overnote-axi list --sort accessed --fields id,title,accessed",
+  ],
   run: async (args, context) => {
     const limit = flagNumber(args, "limit") ?? DEFAULT_LIST_LIMIT;
     const offset = flagNumber(args, "offset") ?? 0;
@@ -46,7 +50,9 @@ export const command: CommandSpec = {
       label: "notes",
       noun: pinnedOnly ? "pinned notes" : "live notes",
       columns: listColumns(fields, positions),
-      emptyHints: pinnedOnly ? ["overnote-axi pin <id>", "overnote-axi list"] : ['overnote-axi create --content "<markdown>"'],
+      emptyHints: pinnedOnly
+        ? ["overnote-axi pin <id>", "overnote-axi list"]
+        : ['overnote-axi create --content "<markdown>"'],
       rowHints: ["overnote-axi read <id>"],
     });
   },
