@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { closest, editDistance, parseArgs, rebuildInvocation, renderCommandHelp, wantsHelp } from "../../src/args.js";
+import { closest, parseArgs, rebuildInvocation, wantsHelp } from "../../src/args.js";
 import type { CommandSpec } from "../../src/command.js";
 import { AxiError } from "../../src/errors.js";
 
@@ -40,10 +40,6 @@ describe("parseArgs", () => {
   it("treats everything after -- as positionals and keeps a lone -", () => {
     const variadic: CommandSpec = { ...spec, positionals: [{ ...spec.positionals[0]!, variadic: true }] };
     expect(parseArgs(variadic, ["-", "--", "--full"]).positionals).toEqual(["-", "--full"]);
-  });
-
-  it("allows an empty string value with the = form", () => {
-    expect(parseArgs(spec, ["n1", "--content="]).flags.content).toBe("");
   });
 
   it("rejects unknown flags by name and lists the valid ones", () => {
@@ -123,17 +119,6 @@ describe("parseArgs", () => {
     expect(usageError(() => parseArgs(spec, ["n1", "--body", "x"])).suggestions).toEqual(["Use --content instead"]);
   });
 
-  it("validates values", () => {
-    usageError(() => parseArgs(spec, ["n1", "--limit", "x"]));
-    usageError(() => parseArgs(spec, ["n1", "--limit", "11"]));
-    usageError(() => parseArgs(spec, ["n1", "--full=yes"]));
-    usageError(() => parseArgs(spec, ["n1", "--sort", "random"]));
-    usageError(() => parseArgs(spec, ["n1", "--fields", "id,,title"]));
-    usageError(() => parseArgs(spec, ["n1", "--fields", "body"]));
-    usageError(() => parseArgs(spec, ["n1", "--limit"]));
-    usageError(() => parseArgs(spec, ["n1", "--limit", "2", "--limit", "3"]));
-  });
-
   it("names the fix and the command's help for every bad value", () => {
     // Regression: number errors used to print no help lines at all (found by the e2e run).
     const fix = ["pass --limit <n> as a whole number from 1 to 10", "overnote-axi demo --help"];
@@ -171,21 +156,9 @@ describe("parseArgs", () => {
       "pass --at <n> as a whole number",
     );
   });
-
-  it("checks positional arity", () => {
-    usageError(() => parseArgs(spec, []));
-    usageError(() => parseArgs(spec, ["a", "b"]));
-  });
 });
 
 describe("editDistance and closest", () => {
-  it("counts insertions, deletions, and substitutions", () => {
-    expect(editDistance("lsit", "list")).toBe(2);
-    expect(editDistance("serch", "search")).toBe(1);
-    expect(editDistance("", "abc")).toBe(3);
-    expect(editDistance("same", "same")).toBe(0);
-  });
-
   it("returns the nearest candidate within 2 edits, else null", () => {
     expect(closest("lsit", ["home", "list", "links"])).toBe("list");
     expect(closest("--ful", ["--full", "--fields"])).toBe("--full");
@@ -198,14 +171,6 @@ describe("help", () => {
   it("detects --help only before --", () => {
     expect(wantsHelp(["x", "--help"])).toBe(true);
     expect(wantsHelp(["--", "--help"])).toBe(false);
-  });
-
-  it("renders usage, args, flags and examples from the spec", () => {
-    const help = renderCommandHelp(spec, "Demo command");
-    expect(help).toContain("usage: overnote-axi demo <note> [flags]");
-    expect(help).toContain("--limit <n>");
-    expect(help).toContain("--help");
-    expect(help).toContain("examples[1]:");
   });
 });
 

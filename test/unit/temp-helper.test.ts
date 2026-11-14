@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { DEFAULT_HELPER_BIN, HELPER_MISSING, helperBinary, startTempHelper } from "../fixtures/temp-helper.js";
+import { DEFAULT_HELPER_BIN, helperBinary, startTempHelper } from "../fixtures/temp-helper.js";
 
 describe("temp helper fixture", () => {
   let dir: string;
@@ -38,11 +38,6 @@ describe("temp helper fixture", () => {
     expect(helperBinary({ OVERNOTE_HELPER_BIN: path.join(dir, "missing") })).toBeNull();
     expect(helperBinary({ OVERNOTE_HELPER_BIN: script("plain", "exit 0", 0o644) })).toBeNull();
     expect(helperBinary({ OVERNOTE_HELPER_BIN: dir })).toBeNull();
-  });
-
-  it("refuses to start without a binary", async () => {
-    process.env.OVERNOTE_HELPER_BIN = path.join(dir, "missing");
-    await expect(startTempHelper()).rejects.toThrow(HELPER_MISSING);
   });
 
   it("fails with the helper's stderr and removes its temp dir when the helper exits at startup", async () => {

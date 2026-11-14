@@ -25,18 +25,6 @@ function blocksOf(raw: string): JSONContent[] {
 }
 
 describe("markdown conversion through @overnote/core", () => {
-  it("derives every stored field the way the editor does", () => {
-    const content = converter.fromMarkdown("# Groceries\n\n- [ ] milk\n- [x] eggs");
-    expect(content.title).toBe("Groceries");
-    expect(content.markdown).toBe("# Groceries\n\n- [ ] milk\n- [x] eggs");
-    expect(JSON.parse(content.rawContent)).toMatchObject({ type: "doc" });
-    expect(content.text).toContain("milk");
-  });
-
-  it("normalizes additions to the markdown core stores", () => {
-    expect(converter.normalize("* item")).toBe("- item");
-  });
-
   it("appends at the document level and keeps unknown nodes and collapsed toggles", () => {
     const note = stored([paragraph("Top"), unknownNode, collapsedToggle]);
     const result = converter.compose(note, "- [ ] new task", "append");
@@ -121,10 +109,6 @@ describe("a duplicate's title suffix", () => {
       markdown: "**Plan** copy  \nsecond line",
     });
     expect(fromMarkdown("**Plan**   trailing  \nnext").markdown).toBe("**Plan**   trailing copy  \nnext");
-  });
-
-  it("puts it on the first line of a code block that comes first", () => {
-    expect(fromMarkdown("```\nfirst\nsecond\n```")).toMatchObject({ title: "first copy", text: "first copy\nsecond" });
   });
 
   it("starts an empty note with it (no leading space), and skips empty blocks before the title", () => {

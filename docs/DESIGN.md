@@ -82,12 +82,13 @@ bin/overnote-axi.ts ── --version fast path, else dynamic import ──▶ sr
 
 | Thing | Default | Override |
 |---|---|---|
-| Support dir | `~/Library/Application Support/com.raycast.macos/extensions/overnote` | `OVERNOTE_SUPPORT_DIR` |
+| Support dir | `~/Library/Application Support/Overnote` once it holds `notes.sqlite`, else `~/Library/Application Support/com.raycast.macos/extensions/overnote` while only that one does, else the shared folder | `OVERNOTE_SUPPORT_DIR` |
 | Database | `<support dir>/notes.sqlite` | follows the support dir |
 | Runtime dir | `/tmp/overnote-<uid>` | `OVERNOTE_RUNTIME_DIR` |
 | Socket | `<runtime dir>/helper.sock` | follows the runtime dir |
 
 The variable names are the ones Overnote's own scripts and end to end tests use (architecture §9).
+From protocol v3.4, Overnote.app and the Raycast extension share `~/Library/Application Support/Overnote`; the CLI reads the extension's older folder only while that one alone holds a database (`resolvePaths` in `src/config/paths.ts`).
 Before connecting, the CLI checks that the runtime dir is a real directory owned by the current user with no group or other permissions, mirroring `ensureRuntimeDir` in Overnote's `src/domain/paths.ts`; then it checks the socket itself with `lstat` (a socket, not a symlink, owned by the current user); otherwise it refuses with `HELPER_NOT_RUNNING` rather than talk to a socket another user could have planted.
 A missing runtime dir or socket hints `overnote-axi open`; one that exists but fails a check hints `overnote-axi status` (section 3.1).
 The CLI never creates the runtime dir or the database.
@@ -595,7 +596,7 @@ results[2]{agent,file,change}:
 - **Invocation rule.** A skill can be present while the binary is not on `PATH`, so the committed `SKILL.md` uses the bare `overnote-axi` and tells the agent: if `command -v overnote-axi` fails, run `npm install -g .` in this repository, or use `node <repo>/dist/overnote-axi.js`.
   `setup skill` writes its installed copy with the command `hookCommand()` resolves, so a skill installed by setup always runs.
   That copy states the resolved command exactly once, near the top, as what `overnote-axi` stands for; every other line, the examples included, keeps the bare name, so a long node plus script path is never repeated.
-  No `npx` form of this CLI may appear until the npm name is published and owned (section 2); a unit test checks the committed file and the generated skill for it.
+  No `npx` form of this CLI may appear until the npm name is published and owned (section 2); a unit test checks the generated skill and its installed form for it, and the staleness check keeps the committed file equal to the generated one.
 - Install paths: `overnote-axi setup skill` installs for Claude Code only (`~/.claude/skills/overnote-axi/SKILL.md`; `--agent` other than `claude` is a usage error for `skill`).
   Other agents use `npx skills add WesleyBLDC/overnote-axi --skill overnote-axi` once the repository is public; that runs the skills installer, not this CLI.
 - The README presents the hook and the skill as two ways to get the same result; a user needs only one.
@@ -626,6 +627,7 @@ Measured on the built `dist/` with Node 22 or later, relative to the `node -e 0`
 - **Never the real app.** `test/setup.ts` sets `OVERNOTE_AXI_OPEN_CMD=/usr/bin/true`, so no test, and no CLI process a test spawns, runs `/usr/bin/open` with a `raycast://` URL, which would launch the real Overnote helper against the real database.
 - **Shared fakes.** `test/fixtures/fakes.ts` provides `FakeReader`, `FakeWriter`, and `fakeContext()` over one in-memory store, faithful to architecture §5 including conflicts, 404 and 409 errors, and an `afterUpdate` hook that simulates the open editor saving over a write.
 - **Unit** (`test/unit/`): TOON encoder against spec cases, argument parsing, rendering, the registry contract (every command loads a documented spec), note reference parsing, markdown composition, deeplink parsing, hook JSON merging on a temp `HOME`, skill generation.
+  Unit tests keep one test per real rule (safety checks, compose and edit loss checks, path resolution, trust checks, the output contract); behaviour a command, integration, or built binary test already covers is not repeated here.
 - **Read path** (`test/store/`): a fixture builder creates `notes.sqlite` with the schema of architecture §6 (version 1 or 2, the latter with `notes_fts` and its triggers) in a temp support dir, so ordering, folding, paging, counts, and backlinks are checked without the helper.
   A higher `userVersion` on those tables, or a dropped column or table, covers the schema check of section 3.1.
 - **Commands** (`test/commands/`): each command runs through `main()` with `fakeContext()`, asserting exact TOON output, empty states, hints (including carried forward flags), error codes, and exit codes.
@@ -634,7 +636,7 @@ Measured on the built `dist/` with Node 22 or later, relative to the `node -e 0`
 - **Built binary** (`test/e2e/`): spawns `dist/overnote-axi.js` for `--version`, help, a read, and a write against the temp helper, `list` piped into a reader that closes early (exit 0, empty stderr), `home` against a socket that never answers, and the hook payload line count, and checks the timing budget against the `node -e 0` floor.
   The harness (`test/e2e/binary.ts`) builds a private copy with `scripts/build.mjs --outdir <tmp>/dist`, so a concurrent `npm run build` never swaps the bundle under a running test, and every spawned process gets the isolated environment of `test/setup.ts`.
   `lifecycle.test.ts` runs every command against the temp helper, `surface.test.ts` covers help, usage and data errors, exit codes, empty states, and the helper failure modes, and `performance.test.ts` counts the fastest of seven runs per path, and of seven `node -e 0` runs for the floor, sampled between the path's runs (the hanging socket check in `surface.test.ts` takes its seven floor runs up front), since load from other test workers only ever adds time; `OVERNOTE_AXI_PERF_REPORT=1` prints the measured table.
-- `npm run check` runs typecheck, tests, build, and the skill staleness check; lint errors and flaky tests count as failures.
+- `npm run check` runs the Prettier format check, Oxlint, typecheck, tests, build, and the skill staleness check; lint errors and flaky tests count as failures.
 
 ## 12. Module map
 

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   listColumns,
-  needsPinPositions,
   oneLine,
   pinPositions,
   PREVIEW_LENGTH,
@@ -46,12 +45,6 @@ describe("note columns", () => {
     ]);
   });
 
-  it("returns no positions without pins", () => {
-    const { store, reader } = createFakes();
-    store.add({ body: "Loose" });
-    expect(pinPositions(reader).size).toBe(0);
-  });
-
   it("renders every field, empty cells for missing values, each field once", () => {
     const { store } = createFakes();
     const note = store.add({ body: "Title\nbody text", pinned: 1000, lastAccessedAt: null });
@@ -64,10 +57,5 @@ describe("note columns", () => {
     ]);
     const loose = store.add({ body: "Loose" });
     expect(rows([summary(loose)], listColumns(["pinned"], new Map()))).toEqual([{ pinned: "" }]);
-  });
-
-  it("asks for pin positions only when the pinned field is shown", () => {
-    expect(needsPinPositions(["id", "pinned"])).toBe(true);
-    expect(needsPinPositions(["id", "title"])).toBe(false);
   });
 });

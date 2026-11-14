@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 
 import { createRuntimeContext } from "../../src/runtime.js";
 import { assertIsolated, REAL_HOME, REAL_RUNTIME_DIR } from "../fixtures/guard.js";
-import { fakeContext } from "../fixtures/fakes.js";
 
 describe("test isolation", () => {
   it("points HOME and agent config away from the real home", () => {
@@ -25,11 +24,5 @@ describe("test isolation", () => {
     expect(context.home).toBe(process.env.HOME);
     expect(() => assertIsolated(context.home)).not.toThrow();
     context.close();
-  });
-
-  it("fake contexts record URLs instead of opening them", async () => {
-    const { context, opened } = fakeContext();
-    await context.openUrl("raycast://extensions/wesleybldc/overnote/open-notes");
-    expect(opened).toEqual(["raycast://extensions/wesleybldc/overnote/open-notes"]);
   });
 });

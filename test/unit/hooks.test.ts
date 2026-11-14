@@ -16,18 +16,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AxiError } from "../../src/errors.js";
 import {
   detectAgents,
-  hookCommand,
   hookCommandLine,
   hookLocations,
   hookTarget,
   installHooks,
   isOurHookCommand,
   OPENCODE_MARKER,
-  removeSessionStartHook,
   renderProgram,
   resolveProgram,
   uninstallHooks,
-  upsertSessionStartHook,
   type HookEnv,
   type HookLocations,
 } from "../../src/integrations/hooks.js";
@@ -58,39 +55,27 @@ function write(file: string, text: string): void {
 }
 
 describe("hookLocations", () => {
-  it("uses CODEX_HOME and XDG_CONFIG_HOME when set", () => {
+  it("uses CODEX_HOME and XDG_CONFIG_HOME when set, else the home defaults", () => {
+    expect(hookLocations({ CODEX_HOME: "" }, "/h")).toEqual({
+      home: "/h",
+      codexHome: "/h/.codex",
+      xdgConfigHome: "/h/.config",
+    });
     expect(hookLocations({ CODEX_HOME: "/x/codex", XDG_CONFIG_HOME: "/x/xdg" }, "/h")).toEqual({
       home: "/h",
       codexHome: "/x/codex",
       xdgConfigHome: "/x/xdg",
     });
   });
-
-  it("falls back to the home defaults when unset or empty", () => {
-    expect(hookLocations({ CODEX_HOME: "" }, "/h")).toEqual({
-      home: "/h",
-      codexHome: "/h/.codex",
-      xdgConfigHome: "/h/.config",
-    });
-  });
 });
 
 describe("detectAgents", () => {
-  it("finds no agent in an empty home", () => {
-    expect(detectAgents(locations)).toEqual([]);
-  });
-
   it("finds each agent whose config directory exists, in report order", () => {
     mkdirSync(path.join(temp.xdgConfigHome, "opencode"), { recursive: true });
     mkdirSync(path.join(temp.home, ".claude"));
     expect(detectAgents(locations)).toEqual(["claude", "opencode"]);
     mkdirSync(temp.codexHome);
     expect(detectAgents(locations)).toEqual(["claude", "codex", "opencode"]);
-  });
-
-  it("ignores a regular file where a config directory would be", () => {
-    writeFileSync(path.join(temp.home, ".claude"), "");
-    expect(detectAgents(locations)).toEqual([]);
   });
 });
 
@@ -144,12 +129,6 @@ describe("Claude Code settings.json", () => {
     expect(readJson(file())).toEqual({
       hooks: { SessionStart: [twice, { matcher: "", hooks: [{ type: "command", command: "keep-me" }] }] },
     });
-  });
-
-  it("treats an empty file as an empty object", () => {
-    write(file(), "  \n");
-    expect(installHooks(env, ["claude"])[0]!.change).toBe("installed");
-    expect(readJson(file())).toEqual({ hooks: { SessionStart: [ENTRY] } });
   });
 
   it("leaves a file that does not parse alone and reports IO_ERROR", () => {
@@ -253,41 +232,19 @@ describe("Claude Code settings.json", () => {
     expect(readJson(target)).toEqual({});
     expect(realpathSync(file())).toBe(realpathSync(target));
   });
-
-  it("uninstall reports absent and creates nothing when the file is missing", () => {
-    expect(uninstallHooks(locations, ["claude"])[0]!.change).toBe("absent");
-    expect(existsSync(file())).toBe(false);
-  });
 });
 
-describe("SessionStart helpers", () => {
-  it("upsert reports what changed without writing", () => {
-    const root: Record<string, unknown> = {};
-    expect(upsertSessionStartHook("settings.json", root, COMMAND)).toBe("installed");
-    expect(upsertSessionStartHook("settings.json", root, COMMAND)).toBe("unchanged");
-    expect(upsertSessionStartHook("settings.json", root, "overnote-axi home")).toBe("updated");
-  });
-
+describe("isOurHookCommand", () => {
   it.each([
     [COMMAND, true],
     ['"/opt/homebrew/bin/node" "/opt/x/dist/overnote-axi.js" home --limit 3 --pinned-limit 3', true],
     ['"/old/node" "/old/overnote-axi.js" home', true],
     ["/usr/local/bin/overnote-axi home", true],
-    ["overnote-axi home", true],
-    ["cd ~/code/GitHub/overnote-axi && npm run x", false],
     ["cd ~/code/GitHub/overnote-axi && npm run home", false],
     ["overnote-axi-dev home", false],
     ["overnote-axi search home", false],
-    ["other-tool home", false],
   ])("isOurHookCommand(%s) is %s", (command, ours) => {
     expect(isOurHookCommand(command)).toBe(ours);
-  });
-
-  it("remove is false when there is nothing of ours", () => {
-    expect(removeSessionStartHook("settings.json", {})).toBe(false);
-    expect(removeSessionStartHook("settings.json", { hooks: { SessionStart: [{ hooks: [{ command: "x" }] }] } })).toBe(
-      false,
-    );
   });
 });
 
@@ -446,18 +403,6 @@ describe("OpenCode", () => {
   });
 });
 
-describe("per agent results", () => {
-  it("reports each agent in order, so one failure does not hide the others", () => {
-    write(hookTarget(locations, "codex").file, "broken");
-    const results = installHooks(env, ["opencode", "codex", "claude"]);
-    expect(results.map((row) => [row.agent, row.change])).toEqual([
-      ["claude", "installed"],
-      ["codex", "error"],
-      ["opencode", "installed"],
-    ]);
-  });
-});
-
 describe("resolveProgram", () => {
   const source = (overrides: Partial<{ binPath: string; execPath: string; pathEnv: string }> = {}) => ({
     binPath: temp.binPath,
@@ -512,29 +457,24 @@ describe("resolveProgram", () => {
       chmodSync(other, 0o755);
       expect(resolveProgram(source({ execPath: node }))[0]).toBe(node);
     });
-
-    it("keeps execPath when no node is on PATH", () => {
-      const node = cellarNode();
-      expect(resolveProgram(source({ execPath: node }))[0]).toBe(node);
-    });
   });
 
   it("skips relative and empty PATH entries", () => {
     expect(resolveProgram(source({ pathEnv: `:bin:${temp.root}` }))[0]).toBe("/opt/node/bin/node");
   });
 
-  it.each([
-    ["a TypeScript entry", "/repo/bin/overnote-axi.ts"],
-    ["a missing file", "/nowhere/dist/overnote-axi.js"],
-  ])("refuses %s with VALIDATION_ERROR", (_label, binPath) => {
-    expect(() => resolveProgram(source({ binPath }))).toThrow(AxiError);
-    try {
-      resolveProgram(source({ binPath }));
-    } catch (error) {
-      expect((error as AxiError).code).toBe("VALIDATION_ERROR");
-      expect((error as AxiError).suggestions).toEqual(["npm run build", "node dist/overnote-axi.js setup"]);
-    }
-  });
+  it.each([["a missing file", "/nowhere/dist/overnote-axi.js"]])(
+    "refuses %s with VALIDATION_ERROR",
+    (_label, binPath) => {
+      expect(() => resolveProgram(source({ binPath }))).toThrow(AxiError);
+      try {
+        resolveProgram(source({ binPath }));
+      } catch (error) {
+        expect((error as AxiError).code).toBe("VALIDATION_ERROR");
+        expect((error as AxiError).suggestions).toEqual(["npm run build", "node dist/overnote-axi.js setup"]);
+      }
+    },
+  );
 
   it("refuses a script that is not dist/overnote-axi.js", () => {
     const elsewhere = path.join(temp.root, "src", "overnote-axi.js");
@@ -551,11 +491,5 @@ describe("renderProgram and hookCommand", () => {
 
   it("quotes absolute paths and escapes shell specials", () => {
     expect(renderProgram(["/My Apps/node", '/a"b/$x`y\\z.js'])).toBe('"/My Apps/node" "/a\\"b/\\$x\\`y\\\\z.js"');
-  });
-
-  it("renders the resolved program", () => {
-    expect(hookCommand({ binPath: temp.binPath, execPath: "/n/node", pathEnv: "" })).toBe(
-      `"/n/node" "${realpathSync(temp.binPath)}"`,
-    );
   });
 });

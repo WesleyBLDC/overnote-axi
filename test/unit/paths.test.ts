@@ -59,11 +59,6 @@ describe("resolvePaths", () => {
     expect(paths.supportDir).toBe(`/h/${SHARED_SUPPORT_SUBPATH}`);
     expect(paths.runtimeDir).toBe(path.resolve("rel/run"));
   });
-
-  it("follows the isolated test environment", () => {
-    const paths = resolvePaths({ env: process.env, home: os.homedir(), uid: os.userInfo().uid });
-    for (const value of Object.values(paths)) assertIsolated(value);
-  });
 });
 
 describe("trust checks", () => {

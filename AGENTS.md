@@ -16,9 +16,27 @@
 - Only `src/markdown/convert.ts` may import the full `@overnote/core` entry; everything else uses `@overnote/core/text` or type-only imports.
 - stdout is TOON only and goes through `src/output/render.ts`; never print raw dependency errors.
 - Every command module declares its flags in its `CommandSpec`; do not parse argv by hand.
+- Prettier formats every file it supports (Markdown excluded); Claude Code's hook in `.claude/settings.json` formats each edited file, and other agents run `npx prettier --write <files>`.
 - Prose (docs, comments, messages, help text): never use dashes as punctuation (hyphens inside compound words are fine), and put each sentence of a long Markdown file on its own line.
 - `npm run check` must pass before a commit; treat lint errors, failing tests, and flaky tests as defects.
-- Work on a branch and open a pull request; never push to `main` or force push.
+- `main` only moves through a merged pull request: work on a branch and open one; never push to `main` or force push.
+  To catch up with `main`, merge `origin/main` into the branch rather than rebasing a pushed branch.
 - Clean room: reuse code only from the public Overnote repository.
+
+## Keeping docs and rules current
+
+Docs describe what is on `main` today, never what used to be.
+
+- Every merge updates the docs it changes in the same pull request: this file, `README.md`, `docs/DESIGN.md` (command surface, paths, testing, module map), and `docs/architecture/system-design.md`.
+- Prune as you go: delete rules, paragraphs, and table rows that no longer match the code, instead of adding a correction next to them.
+- Keep this file short: a rule earns its line only if an agent would get it wrong without it.
+
+## Learning
+
+Turn every mistake or better way into a durable fix, so the next agent does not repeat it.
+
+- When a guard blocks you, a review finds a bug, a test was flaky, or you find a faster workflow, add one line in the same pull request: a rule here, a step in a skill under `.claude/skills/`, or a check in `npm run check` when it can be automated.
+- Prefer automating the lesson (a script, a test, a lint rule) over writing it down.
+- Repo skill: `.claude/skills/ship-change` (branch to merged pull request with docs); update it when its steps go stale.
 
 A lead session reads `lead.toml` and the rules it names; workers can ignore it.
