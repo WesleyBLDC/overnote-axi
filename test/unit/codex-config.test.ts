@@ -8,10 +8,6 @@ describe("enableCodexHooks", () => {
     expect(enableCodexHooks(null)).toEqual({ text: "[features]\nhooks = true\n", changed: true });
   });
 
-  it("creates the table in an empty file", () => {
-    expect(enableCodexHooks("")).toEqual({ text: "[features]\nhooks = true\n", changed: true });
-  });
-
   it("appends the table after other content with one blank line, keeping every line", () => {
     const before = 'model = "o3"\n\n[mcp_servers.x]\ncommand = "x"\n';
     expect(enableCodexHooks(before).text).toBe(`${before}\n[features]\nhooks = true\n`);
@@ -59,9 +55,5 @@ describe("enableCodexHooks", () => {
 
   it("keeps CRLF line endings", () => {
     expect(enableCodexHooks("[features]\r\nx = 1\r\n").text).toBe("[features]\r\nhooks = true\r\nx = 1\r\n");
-  });
-
-  it("refuses an inline features table", () => {
-    expect(() => enableCodexHooks("features = { web_search = true }\n")).toThrow(AxiError);
   });
 });

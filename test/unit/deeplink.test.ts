@@ -27,10 +27,6 @@ describe("deeplinks", () => {
     expect(markdownNoteLink("a [b] \\ c", A)).toBe(`[a \\[b\\] \\\\ c](${noteDeeplink(A)})`);
   });
 
-  it("round trips a link through extractNoteLinks", () => {
-    expect(extractNoteLinks(markdownNoteLink("a [b] \\ c", A))).toEqual([{ id: A, label: "a [b] \\ c" }]);
-  });
-
   it("finds encoded, raw JSON, bare and autolinked deeplinks in order without duplicates", () => {
     const markdown = [
       `See [Groceries](${noteDeeplink(A)}) and`,

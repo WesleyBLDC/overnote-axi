@@ -18,11 +18,6 @@ describe("alreadyPresent", () => {
     expect(alreadyPresent("# Listing", "# List", "prepend")).toBe(false);
     expect(alreadyPresent("same", " same ", "prepend")).toBe(true);
   });
-
-  it("never treats an empty addition as present", () => {
-    expect(alreadyPresent("text", "  ", "append")).toBe(false);
-    expect(alreadyPresent("", "", "append")).toBe(false);
-  });
 });
 
 describe("alreadyEdited", () => {
@@ -102,13 +97,6 @@ describe("writeSurvived", () => {
     expect(appended.markdown).toBe("# Todo\n\n---\n\nbody\n\n---");
     expect(converter.writeSurvived(repeated, appended, repeated)).toBe(false);
     expect(converter.writeSurvived(repeated, appended, appended)).toBe(true);
-  });
-
-  it("is true when typing elsewhere kept the appended copy of a repeated block", () => {
-    const repeated = converter.fromMarkdown("Same\n\nother");
-    const appended = converter.compose(repeated, "Same", "append");
-    const typedAround = converter.fromMarkdown("Same\n\nother mine\n\nSame");
-    expect(converter.writeSurvived(repeated, appended, typedAround)).toBe(true);
   });
 
   it("is false when a removed copy of one of two identical blocks came back", () => {

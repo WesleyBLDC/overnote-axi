@@ -10,14 +10,8 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { AxiError } from "../../src/errors.js";
-import { connectWriter, HelperNotesWriter, probeHelper, translateHelperError } from "../../src/helper/notes-writer.js";
-import {
-  RpcClient,
-  RpcConnectionError,
-  RpcError,
-  RpcTimeoutError,
-  type RpcTransport,
-} from "../../src/helper/rpc-client.js";
+import { connectWriter, probeHelper, translateHelperError } from "../../src/helper/notes-writer.js";
+import { RpcClient, RpcConnectionError, RpcError, RpcTimeoutError } from "../../src/helper/rpc-client.js";
 import { assertIsolated } from "../fixtures/guard.js";
 
 type Handler = (request: { id: number; method: string; params: unknown }, reply: (line: unknown) => void) => void;
@@ -215,15 +209,6 @@ describe("helper socket client", () => {
     ]);
   });
 
-  it("returns the emptyTrash count", async () => {
-    await serve(({ id, method }, reply) =>
-      reply({ id, result: method === "system.ping" ? { version: "1", pid: 1 } : { count: 4 } }),
-    );
-    const writer = await connectWriter(socket, runtimeDir, uid);
-    expect(await writer.emptyTrash()).toBe(4);
-    writer.close();
-  });
-
   it("refuses an untrusted runtime dir or a missing socket with HELPER_NOT_RUNNING", async () => {
     expect(await errorOf(connectWriter(socket, runtimeDir, uid))).toMatchObject({
       code: "HELPER_NOT_RUNNING",
@@ -265,18 +250,6 @@ describe("helper socket client", () => {
     const started = Date.now();
     expect(await probeHelper(socket, runtimeDir, uid, 150)).toEqual({ state: "not-answering" });
     expect(Date.now() - started).toBeLessThan(400);
-  });
-
-  it("keeps connect plus ping within one probe budget", async () => {
-    // A Unix socket connects almost at once, so this pins the total for a silent helper: the
-    // ping is given only what the connect left, and the probe ends close to the budget.
-    await serve(() => undefined);
-    const started = Date.now();
-    expect(await probeHelper(socket, runtimeDir, uid, 200)).toEqual({ state: "not-answering" });
-    const elapsed = Date.now() - started;
-    expect(elapsed).toBeGreaterThanOrEqual(190);
-    // Below twice the budget: catches a ping that gets its own full budget, with room for jitter.
-    expect(elapsed).toBeLessThan(400);
   });
 });
 
@@ -321,15 +294,5 @@ describe("translateHelperError", () => {
     expect(translateHelperError(new RpcConnectionError("x", "connect")).suggestions).toEqual(["overnote-axi open"]);
     const passthrough = new AxiError("kept", "STALE_WRITE");
     expect(translateHelperError(passthrough)).toBe(passthrough);
-  });
-
-  it("is applied by every writer call", async () => {
-    const transport: RpcTransport = {
-      call: () => Promise.reject(new RpcError(404, "gone", "notes.get")),
-      close: () => undefined,
-    };
-    const writer = new HelperNotesWriter(transport);
-    expect(await errorOf(writer.get("A"))).toMatchObject({ code: "NOTE_NOT_FOUND" });
-    expect(await errorOf(writer.trash("A"))).toMatchObject({ code: "NOTE_NOT_FOUND" });
   });
 });

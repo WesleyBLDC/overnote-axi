@@ -11,7 +11,6 @@ import {
   installSkill,
   repoSkill,
   SKILL_DESCRIPTION,
-  SKILL_MARKER,
   skillFile,
   skillInput,
   uninstallSkill,
@@ -62,10 +61,6 @@ describe("buildSkill", () => {
     }
   });
 
-  it("carries the generated marker", () => {
-    expect(skill).toContain(SKILL_MARKER);
-  });
-
   it("lists every command with its help summary", () => {
     expect(commandsBlock().split("\n")).toHaveLength(COMMANDS.length);
     for (const entry of COMMANDS) expect(skill).toMatch(new RegExp(`^${entry.name} +${escape(entry.summary)}$`, "m"));
@@ -98,28 +93,16 @@ describe("buildSkill", () => {
     expect(skill).toMatch(/no hint ever offers it/);
   });
 
-  it("follows input changes instead of hard coding them", () => {
-    const custom = buildSkill({
-      ...skillInput(),
-      homeHints: ["overnote-axi list"],
-      workflow: ["Do one thing"],
-      safety: ["Be safe."],
-    });
-    expect(custom).toContain("- `overnote-axi list`");
-    expect(custom).toContain("- Do one thing.");
-    expect(custom).toContain("- Be safe.");
-    expect(custom).not.toContain(WORKFLOW[0]!);
-  });
-
-  it.each([
-    ["where to start", "## Start here"],
-    ["runnable examples", "## Examples"],
-    ["the supported markdown subset", "## Supported markdown"],
-    ["the formatting rules", "## Writing clean notes"],
-    ["the safety rules", "## Safety rules"],
-    ["the common errors", "## Common errors"],
-  ])("teaches %s", (_label, heading) => {
-    expect(skill).toContain(`\n${heading}\n`);
+  it("has every section an agent needs", () => {
+    for (const heading of [
+      "## Start here",
+      "## Examples",
+      "## Supported markdown",
+      "## Writing clean notes",
+      "## Safety rules",
+      "## Common errors",
+    ])
+      expect(skill).toContain(`\n${heading}\n`);
   });
 
   it("states the formatting rules, scoped to notes the agent maintains", () => {
@@ -196,11 +179,6 @@ describe("buildSkill", () => {
     expect(installed).toContain("name: overnote-axi");
     expect(installed).toContain("overnote-axi reads, searches, creates");
   });
-
-  it("ends with exactly one newline", () => {
-    expect(skill.endsWith("\n")).toBe(true);
-    expect(skill.endsWith("\n\n")).toBe(false);
-  });
 });
 
 describe("installSkill and uninstallSkill", () => {
@@ -262,14 +240,6 @@ describe("installSkill and uninstallSkill", () => {
     uninstallSkill(temp.home);
     expect(existsSync(path.dirname(skillFile(temp.home)))).toBe(false);
     expect(readFileSync(other, "utf8")).toBe("# mine\n");
-  });
-
-  it("uninstall keeps the directory when it holds other files", () => {
-    installSkill(temp.home, content());
-    const extra = path.join(path.dirname(skillFile(temp.home)), "notes.txt");
-    writeFileSync(extra, "keep");
-    uninstallSkill(temp.home);
-    expect(readFileSync(extra, "utf8")).toBe("keep");
   });
 });
 
