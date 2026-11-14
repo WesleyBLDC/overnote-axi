@@ -1,7 +1,10 @@
 /**
  * Resolves every location the CLI touches.
  *
- * Defaults mirror the app (overnote docs/architecture.md sections 1 and 9):
+ * Defaults mirror the app (overnote docs/architecture.md sections 1 and 9, protocol v3.4):
+ * - shared support dir: `~/Library/Application Support/Overnote` (SHARED_SUPPORT_SUBPATH), used by
+ *   Overnote.app and the extension from v3.4; the CLI reads it once it holds a database
+ * - legacy support dir (DEFAULT_SUPPORT_SUBPATH), used by Overnote 0.5.0 and older, until then:
  * - support dir: `~/Library/Application Support/com.raycast.macos/extensions/overnote`
  * - database: `<support dir>/notes.sqlite`
  * - runtime dir: `/tmp/overnote-<uid>`, socket `<runtime dir>/helper.sock`
@@ -9,7 +12,7 @@
  * `OVERNOTE_SUPPORT_DIR` and `OVERNOTE_RUNTIME_DIR` override them, the same variables the app's
  * own scripts and end to end tests use. Tests always set both to temporary folders.
  */
-import { lstatSync } from "node:fs";
+import { existsSync, lstatSync } from "node:fs";
 import path from "node:path";
 
 import type { OvernotePaths } from "../domain/types.js";
@@ -21,6 +24,8 @@ export interface PathEnv {
 }
 
 export const DEFAULT_SUPPORT_SUBPATH = "Library/Application Support/com.raycast.macos/extensions/overnote";
+/** The folder Overnote.app and the extension share from protocol v3.4. */
+export const SHARED_SUPPORT_SUBPATH = "Library/Application Support/Overnote";
 export const DATABASE_FILE = "notes.sqlite";
 export const SOCKET_FILE = "helper.sock";
 
@@ -34,8 +39,16 @@ function override(value: string | undefined): string | undefined {
   return value !== undefined && value.trim() !== "" ? path.resolve(value) : undefined;
 }
 
-export function resolvePaths(input: PathEnv): OvernotePaths {
-  const supportDir = override(input.env.OVERNOTE_SUPPORT_DIR) ?? path.join(input.home, DEFAULT_SUPPORT_SUBPATH);
+/** The shared folder once it holds a database, else the legacy folder when that one does, else the shared folder. */
+function defaultSupportDir(home: string, exists: (file: string) => boolean): string {
+  const shared = path.join(home, SHARED_SUPPORT_SUBPATH);
+  const legacy = path.join(home, DEFAULT_SUPPORT_SUBPATH);
+  if (exists(path.join(shared, DATABASE_FILE))) return shared;
+  return exists(path.join(legacy, DATABASE_FILE)) ? legacy : shared;
+}
+
+export function resolvePaths(input: PathEnv, exists: (file: string) => boolean = existsSync): OvernotePaths {
+  const supportDir = override(input.env.OVERNOTE_SUPPORT_DIR) ?? defaultSupportDir(input.home, exists);
   const runtimeDir = override(input.env.OVERNOTE_RUNTIME_DIR) ?? defaultRuntimeDir(input.uid);
   return {
     supportDir,
