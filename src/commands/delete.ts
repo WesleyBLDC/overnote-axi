@@ -87,9 +87,14 @@ async function permanentDelete(context: Context, raw: string): Promise<CommandOu
   const after = await getOrNull(writer, ref.id);
   if (after !== null) {
     const state = after.deletedAt === null ? "it was recovered meanwhile" : "it is still in Recently Deleted";
-    throw axiError(`Overnote did not erase the note; ${state}`, "HELPER_ERROR", [`overnote-axi read ${ref.id} --meta`], {
-      id: ref.id,
-    });
+    throw axiError(
+      `Overnote did not erase the note; ${state}`,
+      "HELPER_ERROR",
+      [`overnote-axi read ${ref.id} --meta`],
+      {
+        id: ref.id,
+      },
+    );
   }
   return ok(renderDetail({ deleted: `${label(note)} (erased permanently)` }));
 }
@@ -97,7 +102,9 @@ async function permanentDelete(context: Context, raw: string): Promise<CommandOu
 export const command: CommandSpec = {
   name: "delete",
   positionals: [NOTE_ARG],
-  flags: [{ name: "permanent", type: "boolean", description: "Erase the note instead of moving it to Recently Deleted" }],
+  flags: [
+    { name: "permanent", type: "boolean", description: "Erase the note instead of moving it to Recently Deleted" },
+  ],
   notes: [
     "Without --permanent the note can be restored with recover for 60 days",
     "--permanent needs the full 26 character id and does not accept current",

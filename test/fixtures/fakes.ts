@@ -158,7 +158,11 @@ export class FakeReader implements NotesReader {
   counts(): NoteCounts {
     const all = [...this.store.notes.values()];
     const live = all.filter((note) => note.deletedAt === null);
-    return { live: live.length, pinned: live.filter((note) => note.pinned !== null).length, trashed: all.length - live.length };
+    return {
+      live: live.length,
+      pinned: live.filter((note) => note.pinned !== null).length,
+      trashed: all.length - live.length,
+    };
   }
 
   list(query: ListQuery): Page<NoteSummary> {
@@ -178,14 +182,22 @@ export class FakeReader implements NotesReader {
 
   search(query: string, options: SearchQuery): Page<SearchHit> {
     const needle = fold(query);
-    const pool = [...this.store.notes.values()].filter((note) => (note.deletedAt !== null) === (options.trashed ?? false));
+    const pool = [...this.store.notes.values()].filter(
+      (note) => (note.deletedAt !== null) === (options.trashed ?? false),
+    );
     const hits: SearchHit[] = [];
     for (const note of pool.sort(appOrder())) {
       const titleMatch = fold(displayTitle(note)).includes(needle);
       const at = fold(note.text).indexOf(needle);
       if (!titleMatch && at === -1) continue;
       const start = Math.max(0, at - 30);
-      const snippet = at === -1 ? "" : note.text.slice(start, start + 80).replace(/\s+/g, " ").trim();
+      const snippet =
+        at === -1
+          ? ""
+          : note.text
+              .slice(start, start + 80)
+              .replace(/\s+/g, " ")
+              .trim();
       hits.push({ note: summary(note), titleMatch, snippet });
     }
     hits.sort((a, b) => Number(b.titleMatch) - Number(a.titleMatch));
@@ -332,6 +344,7 @@ export class FakeWriter implements NotesWriter {
   async emptyTrash(): Promise<number> {
     this.enter("emptyTrash");
     let count = 0;
+    // oxlint-disable-next-line unicorn/no-useless-spread -- snapshot the values: the loop deletes from the map.
     for (const note of [...this.store.notes.values()]) {
       if (note.deletedAt !== null) {
         this.store.notes.delete(note.id);

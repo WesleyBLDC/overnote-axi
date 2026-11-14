@@ -32,7 +32,11 @@ export const command: CommandSpec = {
     ...CONTENT_FLAGS,
     { name: "append", type: "boolean", description: "Add after the existing content (the default)" },
     { name: "prepend", type: "boolean", description: "Add at the start, below the title line when the note has one" },
-    { name: "top", type: "boolean", description: "Add above everything, the title line included (the content becomes the title)" },
+    {
+      name: "top",
+      type: "boolean",
+      description: "Add above everything, the title line included (the content becomes the title)",
+    },
     { name: "replace", type: "boolean", description: "Replace the whole note (needs --expected-updated-at)" },
     EXPECTED_UPDATED_AT_FLAG,
     ALLOW_LOSS_FLAG,
@@ -54,17 +58,21 @@ export const command: CommandSpec = {
     const quoted = shellQuote(ref);
     const given = MODES.filter((mode) => flagBoolean(args, mode));
     if (given.length > 1) {
-      throw validation(`choose one of --append, --prepend, --top, --replace (got ${given.map((mode) => `--${mode}`).join(" ")})`, [
-        "overnote-axi update --help",
-      ]);
+      throw validation(
+        `choose one of --append, --prepend, --top, --replace (got ${given.map((mode) => `--${mode}`).join(" ")})`,
+        ["overnote-axi update --help"],
+      );
     }
     const mode: UpdateMode = given[0] ?? "append";
     const expectedUpdatedAt = flagNumber(args, "expected-updated-at");
     if (mode === "replace" && expectedUpdatedAt === undefined) {
-      throw validation("update --replace needs --expected-updated-at, so it cannot overwrite edits made since you read the note", [
-        `overnote-axi read ${quoted} --meta`,
-        `overnote-axi update ${quoted} --replace --content-file <path> --expected-updated-at <updatedAt>`,
-      ]);
+      throw validation(
+        "update --replace needs --expected-updated-at, so it cannot overwrite edits made since you read the note",
+        [
+          `overnote-axi read ${quoted} --meta`,
+          `overnote-axi update ${quoted} --replace --content-file <path> --expected-updated-at <updatedAt>`,
+        ],
+      );
     }
     const addition = await requireContent(args, context, "update");
 

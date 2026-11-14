@@ -1,0 +1,10 @@
+# Generated output
+dist/
+coverage/
+
+# Markdown docs keep one sentence per line and are not formatted by Prettier
+*.md
+
+# Local agent state
+.claude/settings.local.json
+.claude/worktrees/

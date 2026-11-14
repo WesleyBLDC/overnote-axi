@@ -57,15 +57,39 @@ describe("usage errors exit 2 and name a fix", () => {
   const cases: ReadonlyArray<{ argv: string[]; error: string; help: string }> = [
     { argv: ["lsit"], error: "error: unknown command lsit", help: "  overnote-axi --help" },
     { argv: ["list", "--bogus"], error: "error: unknown flag --bogus for list", help: "  overnote-axi list [flags]" },
-    { argv: ["list", "--limit", "abc"], error: "error: flag --limit must be a whole number (got abc)", help: "  overnote-axi list --help" },
-    { argv: ["home", "--limit", "51"], error: "error: flag --limit must be at most 50 (got 51)", help: "  overnote-axi home --help" },
-    { argv: ["read", "x", "--format", "html"], error: "error: flag --format does not accept html", help: "  overnote-axi read --help" },
+    {
+      argv: ["list", "--limit", "abc"],
+      error: "error: flag --limit must be a whole number (got abc)",
+      help: "  overnote-axi list --help",
+    },
+    {
+      argv: ["home", "--limit", "51"],
+      error: "error: flag --limit must be at most 50 (got 51)",
+      help: "  overnote-axi home --help",
+    },
+    {
+      argv: ["read", "x", "--format", "html"],
+      error: "error: flag --format does not accept html",
+      help: "  overnote-axi read --help",
+    },
     { argv: ["read"], error: "error: read requires <note>", help: "  overnote-axi read <note>... [flags]" },
-    { argv: ["search", " "], error: "error: search needs a query that is not blank", help: '  overnote-axi search "<text>"' },
+    {
+      argv: ["search", " "],
+      error: "error: search needs a query that is not blank",
+      help: '  overnote-axi search "<text>"',
+    },
     { argv: ["create"], error: "error:", help: '  overnote-axi create --title "<text>"' },
-    { argv: ["--limit", "3"], error: "error: flags go after the command (got --limit first)", help: "  overnote-axi home --limit 3" },
+    {
+      argv: ["--limit", "3"],
+      error: "error: flags go after the command (got --limit first)",
+      help: "  overnote-axi home --limit 3",
+    },
     { argv: ["--", "list"], error: "error: flags go after the command (got -- first)", help: "  overnote-axi list" },
-    { argv: ["--help", "read"], error: "error: flags go after the command (got --help first)", help: "  overnote-axi read --help" },
+    {
+      argv: ["--help", "read"],
+      error: "error: flags go after the command (got --help first)",
+      help: "  overnote-axi read --help",
+    },
   ];
 
   it.each(cases)("$argv", async ({ argv, error, help }) => {
@@ -118,7 +142,7 @@ describe("an empty database", () => {
   afterAll(() => db?.cleanup());
 
   it.each([
-    [["list"], "notes: 0 live notes\nhelp[1]:\n  overnote-axi create --content \"<markdown>\"\n"],
+    [["list"], 'notes: 0 live notes\nhelp[1]:\n  overnote-axi create --content "<markdown>"\n'],
     [["list", "--pinned"], "notes: 0 pinned notes\n"],
     [["search", "milk"], "hits: 0 notes match 'milk'\n"],
     [["trash"], "trash: 0 notes in Recently Deleted\n"],
@@ -132,7 +156,9 @@ describe("an empty database", () => {
     const result = await runBinary(binary, [], { env: db.env() });
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("  notes: 0 live\n");
-    expect(result.stdout.endsWith('help[2]:\n  overnote-axi open\n  overnote-axi create --content "<markdown>"\n')).toBe(true);
+    expect(
+      result.stdout.endsWith('help[2]:\n  overnote-axi open\n  overnote-axi create --content "<markdown>"\n'),
+    ).toBe(true);
   });
 
   it("fails a reference with NOTE_NOT_FOUND and exit 1", async () => {
@@ -253,7 +279,9 @@ describe("a helper socket that accepts and never answers", () => {
   });
 
   it("times out a write with HELPER_TIMEOUT and exit 1", async () => {
-    const result = await runBinary(binary, ["pin", "current"], { env: { ...db.env(), OVERNOTE_RUNTIME_DIR: runtimeDir } });
+    const result = await runBinary(binary, ["pin", "current"], {
+      env: { ...db.env(), OVERNOTE_RUNTIME_DIR: runtimeDir },
+    });
     expect(result.code).toBe(1);
     expect(result.stdout).toContain("code: HELPER_TIMEOUT\n");
     expect(result.stderr).toBe("");

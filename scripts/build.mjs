@@ -104,7 +104,14 @@ function thirdPartyNotices(metafile) {
 
   const coreLicense = path.join(overnote, "LICENSE");
   if (!existsSync(coreLicense)) missing.push("@overnote/core (Overnote LICENSE)");
-  else sections.push(notice("@overnote/core", readFileSync(path.join(overnote, "packages/core/package.json"), "utf8"), readFileSync(coreLicense, "utf8").trim()));
+  else
+    sections.push(
+      notice(
+        "@overnote/core",
+        readFileSync(path.join(overnote, "packages/core/package.json"), "utf8"),
+        readFileSync(coreLicense, "utf8").trim(),
+      ),
+    );
 
   for (const root of [...roots].sort()) {
     const manifest = readFileSync(path.join(root, "package.json"), "utf8");
@@ -125,5 +132,12 @@ function thirdPartyNotices(metafile) {
 function notice(name, manifestText, text) {
   const manifest = JSON.parse(manifestText);
   const rule = "=".repeat(78);
-  return [rule, `${name ?? manifest.name}@${manifest.version ?? "unknown"} (${manifest.license ?? "see below"})`, rule, "", text, ""].join("\n");
+  return [
+    rule,
+    `${name ?? manifest.name}@${manifest.version ?? "unknown"} (${manifest.license ?? "see below"})`,
+    rule,
+    "",
+    text,
+    "",
+  ].join("\n");
 }

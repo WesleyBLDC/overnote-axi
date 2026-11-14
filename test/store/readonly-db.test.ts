@@ -84,7 +84,9 @@ describe("openReader", () => {
     fixture.close();
     const reader = openReader(fixture.database)!;
     expect(reader.schemaVersion()).toBe(2);
-    const fts = rawDb(reader).prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").all("notes_fts");
+    const fts = rawDb(reader)
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+      .all("notes_fts");
     expect(fts).toHaveLength(1);
     reader.close();
   });
@@ -214,18 +216,34 @@ describe.each([1, 2] as const)("ReadOnlyNotesDb queries on schema %i", (schema) 
     const fresh = fixture.add({ body: "fresh", updatedAt: 300, createdAt: 100, lastAccessedAt: null });
     const pinB = fixture.add({ body: "pin b", pinned: 2000, updatedAt: 1 });
     const pinA = fixture.add({ body: "pin a", pinned: 1000, updatedAt: 2 });
-    const tieX = fixture.add({ id: "01JAB00000ZZZZZZZZZZZZZZZ1", body: "tie", updatedAt: 200, createdAt: 1, lastAccessedAt: 1 });
-    const tieY = fixture.add({ id: "01JAB00000ZZZZZZZZZZZZZZZ0", body: "tie", updatedAt: 200, createdAt: 1, lastAccessedAt: 1 });
+    const tieX = fixture.add({
+      id: "01JAB00000ZZZZZZZZZZZZZZZ1",
+      body: "tie",
+      updatedAt: 200,
+      createdAt: 1,
+      lastAccessedAt: 1,
+    });
+    const tieY = fixture.add({
+      id: "01JAB00000ZZZZZZZZZZZZZZZ0",
+      body: "tie",
+      updatedAt: 200,
+      createdAt: 1,
+      lastAccessedAt: 1,
+    });
     fixture.add({ body: "gone", deletedAt: 10, updatedAt: 999 });
     open();
-    const ids = (order?: "updated" | "accessed" | "created") => reader.list({ limit: 50, order }).items.map((n) => n.id);
+    const ids = (order?: "updated" | "accessed" | "created") =>
+      reader.list({ limit: 50, order }).items.map((n) => n.id);
     expect(ids()).toEqual([pinA.id, pinB.id, fresh.id, tieY.id, tieX.id, old.id]);
     expect(ids("created")).toEqual([pinA.id, pinB.id, old.id, fresh.id, tieY.id, tieX.id]);
     expect(ids("accessed")).toEqual([pinA.id, pinB.id, old.id, tieY.id, tieX.id, fresh.id]);
     const page = reader.list({ limit: 2, offset: 2 });
     expect(page.total).toBe(6);
     expect(page.items.map((n) => n.id)).toEqual([fresh.id, tieY.id]);
-    expect(reader.list({ limit: 50, pinnedOnly: true })).toMatchObject({ total: 2, items: [{ id: pinA.id }, { id: pinB.id }] });
+    expect(reader.list({ limit: 50, pinnedOnly: true })).toMatchObject({
+      total: 2,
+      items: [{ id: pinA.id }, { id: pinB.id }],
+    });
     expect(reader.list({ limit: 0 })).toEqual({ items: [], total: 6 });
   });
 
@@ -264,7 +282,11 @@ describe.each([1, 2] as const)("ReadOnlyNotesDb queries on schema %i", (schema) 
   });
 
   it("searches folded title and text, title hits first, then pins, then newest", () => {
-    const textOnly = fixture.add({ title: "Weekly sync", text: "Weekly sync\nWe moved the standup to 9:30 so Sam can join", updatedAt: 500 });
+    const textOnly = fixture.add({
+      title: "Weekly sync",
+      text: "Weekly sync\nWe moved the standup to 9:30 so Sam can join",
+      updatedAt: 500,
+    });
     const titleOld = fixture.add({ title: "Standup", text: "Standup\nnotes", updatedAt: 100 });
     const titleNew = fixture.add({ title: "Stándup two", text: "Stándup two", updatedAt: 200 });
     const pinnedText = fixture.add({ title: "Pinned", text: "Pinned\nSTANDUP later", pinned: 1000, updatedAt: 1 });
@@ -281,7 +303,9 @@ describe.each([1, 2] as const)("ReadOnlyNotesDb queries on schema %i", (schema) 
     ]);
     expect(page.items[3]!.snippet).toBe("Weekly sync We moved the standup to 9:30 so Sam can join");
     expect(reader.search("standup", { limit: 1 })).toMatchObject({ total: 4, items: [{ note: { id: titleNew.id } }] });
-    expect(reader.search("standup", { limit: 10, trashed: true }).items.map((hit) => hit.note.title)).toEqual(["Trashed standup"]);
+    expect(reader.search("standup", { limit: 10, trashed: true }).items.map((hit) => hit.note.title)).toEqual([
+      "Trashed standup",
+    ]);
     expect(reader.search("   ", { limit: 10 })).toEqual({ items: [], total: 0 });
   });
 
@@ -325,7 +349,12 @@ describe.each([1, 2] as const)("ReadOnlyNotesDb queries on schema %i", (schema) 
 
   it("finds notes by id prefix or suffix, live first", () => {
     const live = fixture.add({ id: "01JAB00000AAAAAAAAAAQWERTY", body: "live" });
-    const trashed = fixture.add({ id: "01JAB00000BBBBBBBBBBQWERTY", body: "trashed", deletedAt: 5, updatedAt: 99_999_999_999_999 });
+    const trashed = fixture.add({
+      id: "01JAB00000BBBBBBBBBBQWERTY",
+      body: "trashed",
+      deletedAt: 5,
+      updatedAt: 99_999_999_999_999,
+    });
     const other = fixture.add({ id: "01JAC11111CCCCCCCCCCCCCCCC", body: "other" });
     open();
     expect(reader.findByIdFragment("qwerty", 10).items.map((n) => n.id)).toEqual([live.id, trashed.id]);
@@ -475,9 +504,13 @@ describe("updateHint", () => {
     const home = path.join(root, "me");
     mkdirSync(home);
     const plain = install("me/overnote-axi", true);
-    expect(updateHint(plain.bin, home)).toBe("git -C ~/overnote-axi pull --ff-only && npm --prefix ~/overnote-axi run build");
+    expect(updateHint(plain.bin, home)).toBe(
+      "git -C ~/overnote-axi pull --ff-only && npm --prefix ~/overnote-axi run build",
+    );
     const spaced = install("me/my checkout", true);
-    expect(updateHint(spaced.bin, home)).toBe('git -C ~/"my checkout" pull --ff-only && npm --prefix ~/"my checkout" run build');
+    expect(updateHint(spaced.bin, home)).toBe(
+      'git -C ~/"my checkout" pull --ff-only && npm --prefix ~/"my checkout" run build',
+    );
     expect(updateHint(plain.bin, path.join(root, "other"))).toBe(
       `git -C ${plain.pkg} pull --ff-only && npm --prefix ${plain.pkg} run build`,
     );

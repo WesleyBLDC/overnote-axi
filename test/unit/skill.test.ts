@@ -45,7 +45,19 @@ describe("buildSkill", () => {
   });
 
   it("names the trigger intents in its description", () => {
-    for (const intent of ["Overnote", "Raycast notes", "scratchpad", "quick note", "read", "search", "append", "checking off", "pin", "link", "delet"]) {
+    for (const intent of [
+      "Overnote",
+      "Raycast notes",
+      "scratchpad",
+      "quick note",
+      "read",
+      "search",
+      "append",
+      "checking off",
+      "pin",
+      "link",
+      "delet",
+    ]) {
       expect(SKILL_DESCRIPTION).toContain(intent);
     }
   });
@@ -62,7 +74,9 @@ describe("buildSkill", () => {
   it("renders the shared guidance, so it follows the home view", () => {
     for (const hint of HOME_HINTS) expect(skill).toContain(`- \`${hint}\``);
     for (const line of [...WORKFLOW, ...SAFETY]) expect(skill).toContain(`- ${line}`);
-    expect(skill).toContain(NOTE_REF_HELP.replace(/^<note>/, "`<note>`").replace("title:<exact title>", "`title:<exact title>`"));
+    expect(skill).toContain(
+      NOTE_REF_HELP.replace(/^<note>/, "`<note>`").replace("title:<exact title>", "`title:<exact title>`"),
+    );
   });
 
   it("says each thing once: one safety list, no separate workflow section", () => {
@@ -85,7 +99,12 @@ describe("buildSkill", () => {
   });
 
   it("follows input changes instead of hard coding them", () => {
-    const custom = buildSkill({ ...skillInput(), homeHints: ["overnote-axi list"], workflow: ["Do one thing"], safety: ["Be safe."] });
+    const custom = buildSkill({
+      ...skillInput(),
+      homeHints: ["overnote-axi list"],
+      workflow: ["Do one thing"],
+      safety: ["Be safe."],
+    });
     expect(custom).toContain("- `overnote-axi list`");
     expect(custom).toContain("- Do one thing.");
     expect(custom).toContain("- Be safe.");
@@ -138,7 +157,8 @@ describe("buildSkill", () => {
       expect(entry, line).toBeDefined();
       const { command } = await entry!.load();
       const declared = new Set(command.flags.map((flag) => flag.name));
-      for (const word of rest) if (word.startsWith("--")) expect(declared.has(word.slice(2)), `${line}: ${word}`).toBe(true);
+      for (const word of rest)
+        if (word.startsWith("--")) expect(declared.has(word.slice(2)), `${line}: ${word}`).toBe(true);
     }
   });
 
@@ -167,7 +187,9 @@ describe("buildSkill", () => {
     expect(installed).not.toContain("command -v overnote-axi");
     expect(installed.split(INSTALLED).length - 1).toBe(1);
     // Everything else, the examples included, is the same as the committed copy.
-    expect(installed.replace(/^This copy was installed.*$/m, "")).toBe(skill.replace(/^If `command -v overnote-axi` fails.*$/m, ""));
+    expect(installed.replace(/^This copy was installed.*$/m, "")).toBe(
+      skill.replace(/^If `command -v overnote-axi` fails.*$/m, ""),
+    );
     expect(installed).toContain("- `overnote-axi read <id>`");
     expect(installed).toContain("Run `overnote-axi` first");
     expect(installed).toContain("# Overnote notes with overnote-axi");

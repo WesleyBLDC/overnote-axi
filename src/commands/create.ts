@@ -31,7 +31,11 @@ export function renderNewNote(
  * read after the pin cannot find it). A failed pin names the new note, so a retry pins it
  * instead of creating a second one.
  */
-async function pinNew(context: Context, writer: NotesWriter, note: Note): Promise<{ note: Note; pinned: number | string }> {
+async function pinNew(
+  context: Context,
+  writer: NotesWriter,
+  note: Note,
+): Promise<{ note: Note; pinned: number | string }> {
   try {
     const pinned = await writer.pin(note.id);
     return { note: pinned, pinned: pinPosition(context, note.id).position ?? "?" };
@@ -53,7 +57,11 @@ export const command: CommandSpec = {
     ...CONTENT_FLAGS,
     { name: "title", type: "string", value: "<text>", description: "Heading placed above the content as # <text>" },
     { name: "pin", type: "boolean", description: "Pin the new note" },
-    { name: "open", type: "boolean", description: "Show the new note in the Overnote panel (it becomes the current note)" },
+    {
+      name: "open",
+      type: "boolean",
+      description: "Show the new note in the Overnote panel (it becomes the current note)",
+    },
   ],
   notes: [
     "The title is the first line of the note, as in the app",
@@ -69,10 +77,14 @@ export const command: CommandSpec = {
     const rawTitle = flagString(args, "title");
     const title = rawTitle?.trim();
     if (title !== undefined && title === "") {
-      throw validation("create --title must not be blank", ['overnote-axi create --title "<text>" --content "<markdown>"']);
+      throw validation("create --title must not be blank", [
+        'overnote-axi create --title "<text>" --content "<markdown>"',
+      ]);
     }
     if (title !== undefined && /[\r\n]/.test(title)) {
-      throw validation("create --title must be a single line", ['overnote-axi create --title "<text>" --content "<markdown>"']);
+      throw validation("create --title must be a single line", [
+        'overnote-axi create --title "<text>" --content "<markdown>"',
+      ]);
     }
     const body = await readContent(args, context);
     const parts = [title ? `# ${title}` : "", body ?? ""].filter((part) => part.trim() !== "");

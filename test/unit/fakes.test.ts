@@ -18,6 +18,8 @@ describe("shared fakes", () => {
     await expect(writer.pin(b.id)).rejects.toMatchObject({ code: "NOTE_TRASHED" });
     await writer.permanentlyDelete(a.id);
     expect(reader.get(a.id)).not.toBeNull();
-    await expect(writer.permanentlyDelete("01JAB00000ZZZZZZZZZZZZZZZZ")).rejects.toMatchObject({ code: "NOTE_NOT_FOUND" });
+    await expect(writer.permanentlyDelete("01JAB00000ZZZZZZZZZZZZZZZZ")).rejects.toMatchObject({
+      code: "NOTE_NOT_FOUND",
+    });
   });
 });

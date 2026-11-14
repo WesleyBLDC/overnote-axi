@@ -28,7 +28,11 @@ async function run(
 }
 
 function agentDirs(...agents: ("claude" | "codex" | "opencode")[]): void {
-  const dirs = { claude: path.join(temp.home, ".claude"), codex: temp.codexHome, opencode: path.join(temp.xdgConfigHome, "opencode") };
+  const dirs = {
+    claude: path.join(temp.home, ".claude"),
+    codex: temp.codexHome,
+    opencode: path.join(temp.xdgConfigHome, "opencode"),
+  };
   for (const agent of agents) mkdirSync(dirs[agent], { recursive: true });
 }
 
@@ -102,7 +106,15 @@ describe("setup hooks", () => {
     await run([]);
     const { code, out } = await run([]);
     expect(code).toBe(0);
-    expect(out).toBe(["setup:", "  target: hooks", "results[1]{agent,file,change}:", "  claude,~/.claude/settings.json,unchanged", ""].join("\n"));
+    expect(out).toBe(
+      [
+        "setup:",
+        "  target: hooks",
+        "results[1]{agent,file,change}:",
+        "  claude,~/.claude/settings.json,unchanged",
+        "",
+      ].join("\n"),
+    );
   });
 
   it("runs node with the real script path when the bare name is not on PATH", async () => {
@@ -131,7 +143,9 @@ describe("setup hooks", () => {
     const { code, out } = await run(["--agent", "codex,claud"]);
     expect(code).toBe(2);
     expect(out).toContain("error: flag --agent does not accept claud (did you mean claude?)\n");
-    expect(out).toContain("help[3]:\n  overnote-axi setup --agent codex,claude\n  valid values: claude, codex, opencode\n");
+    expect(out).toContain(
+      "help[3]:\n  overnote-axi setup --agent codex,claude\n  valid values: claude, codex, opencode\n",
+    );
   });
 
   it("exits 1 when an agent fails, shows code and reason, still applies the others, and hints a retry", async () => {
@@ -255,7 +269,9 @@ describe("setup skill", () => {
     writeFileSync(skillPath(), "# mine\n");
     const { code, out } = await run(["skill"]);
     expect(code).toBe(1);
-    expect(out).toContain("results[1]{agent,file,change,code,reason}:\n  claude,~/.claude/skills/overnote-axi/SKILL.md,error,IO_ERROR,");
+    expect(out).toContain(
+      "results[1]{agent,file,change,code,reason}:\n  claude,~/.claude/skills/overnote-axi/SKILL.md,error,IO_ERROR,",
+    );
     expect(out).toContain("help[1]:\n  overnote-axi setup skill\n");
     expect(readFileSync(skillPath(), "utf8")).toBe("# mine\n");
   });
@@ -282,7 +298,13 @@ describe("setup skill", () => {
   it("--uninstall removes it, then reports absent", async () => {
     await run(["skill"]);
     expect((await run(["skill", "--uninstall"])).out).toBe(
-      ["setup:", "  target: skill", "results[1]{agent,file,change}:", "  claude,~/.claude/skills/overnote-axi/SKILL.md,removed", ""].join("\n"),
+      [
+        "setup:",
+        "  target: skill",
+        "results[1]{agent,file,change}:",
+        "  claude,~/.claude/skills/overnote-axi/SKILL.md,removed",
+        "",
+      ].join("\n"),
     );
     expect(existsSync(skillPath())).toBe(false);
     expect((await run(["skill", "--uninstall"])).out).toContain(",absent\n");

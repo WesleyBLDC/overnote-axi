@@ -108,11 +108,16 @@ export function runIntoHead(
   const errFile = path.join(root, "stderr");
   try {
     // $1 is node, $2 the script, $3 the stderr file, $4 the byte count, the rest the CLI argv.
-    const script = 'node="$1" cli="$2" err="$3" bytes="$4"; shift 4; "$node" "$cli" "$@" 2>"$err" | head -c "$bytes"; exit "${PIPESTATUS[0]}"';
-    const result = spawnSync("/bin/bash", ["-c", script, "bash", process.execPath, binary.script, errFile, String(bytes), ...argv], {
-      env: isolatedEnv(env),
-      encoding: "utf8",
-    });
+    const script =
+      'node="$1" cli="$2" err="$3" bytes="$4"; shift 4; "$node" "$cli" "$@" 2>"$err" | head -c "$bytes"; exit "${PIPESTATUS[0]}"';
+    const result = spawnSync(
+      "/bin/bash",
+      ["-c", script, "bash", process.execPath, binary.script, errFile, String(bytes), ...argv],
+      {
+        env: isolatedEnv(env),
+        encoding: "utf8",
+      },
+    );
     return { code: result.status ?? -1, stderr: readFileSync(errFile, "utf8"), head: result.stdout };
   } finally {
     rmSync(root, { recursive: true, force: true });

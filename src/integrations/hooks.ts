@@ -258,7 +258,11 @@ export function upsertSessionStartHook(file: string, root: JsonObject, command: 
 
   const [first, ...extra] = ours;
   let changed = false;
-  if (first!.entry.type !== "command" || first!.entry.command !== command || first!.entry.timeout !== HOOK_TIMEOUT_SECONDS) {
+  if (
+    first!.entry.type !== "command" ||
+    first!.entry.command !== command ||
+    first!.entry.timeout !== HOOK_TIMEOUT_SECONDS
+  ) {
     first!.entry.type = "command";
     first!.entry.command = command;
     first!.entry.timeout = HOOK_TIMEOUT_SECONDS;

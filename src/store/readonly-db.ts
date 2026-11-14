@@ -161,7 +161,8 @@ export function updateHint(binPath: string, home = ""): string {
   }
   if (root && existsSync(path.join(root, ".git"))) {
     const shown = collapseHome(root, home);
-    const quoted = shown === "~" ? shown : shown.startsWith("~/") ? `~/${shellQuote(shown.slice(2))}` : shellQuote(shown);
+    const quoted =
+      shown === "~" ? shown : shown.startsWith("~/") ? `~/${shellQuote(shown.slice(2))}` : shellQuote(shown);
     return `git -C ${quoted} pull --ff-only && npm --prefix ${quoted} run build`;
   }
   return "This install is a copy: in the overnote-axi checkout it was built from, run git pull --ff-only, npm run build, then npm install -g . (see the README)";
@@ -382,7 +383,9 @@ export class ReadOnlyNotesDb implements NotesReader {
     const items = rows
       .map((row) => ({
         note: toSummary(row),
-        titleMatch: fold(displayTitle({ title: String(row.title ?? ""), text: String(row.text ?? "") })).includes(needle),
+        titleMatch: fold(displayTitle({ title: String(row.title ?? ""), text: String(row.text ?? "") })).includes(
+          needle,
+        ),
         snippet: snippetAround(String(row.text ?? ""), needle),
       }))
       // Stable, so the SQL order (app order, then recency) holds within each group.
@@ -411,7 +414,10 @@ export class ReadOnlyNotesDb implements NotesReader {
       `%${escaped}`,
       max,
     ).map(toSummary);
-    return { items, total: this.count(`SELECT count(*) AS count FROM notes WHERE ${where}`, `${escaped}%`, `%${escaped}`) };
+    return {
+      items,
+      total: this.count(`SELECT count(*) AS count FROM notes WHERE ${where}`, `${escaped}%`, `%${escaped}`),
+    };
   }
 
   findByTitle(title: string, limit: number): NoteSummary[] {

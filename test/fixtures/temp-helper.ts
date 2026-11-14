@@ -51,12 +51,17 @@ export function helperSchemaVersion(bin: string): number {
   if (known !== undefined) return known;
   let out: string;
   try {
-    out = execFileSync(bin, ["--schema-version"], { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim();
+    out = execFileSync(bin, ["--schema-version"], {
+      encoding: "utf8",
+      timeout: 5000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
   } catch {
     throw new Error(`${bin} --schema-version failed; rebuild the helper from a current Overnote checkout`);
   }
   const version = Number(out);
-  if (out === "" || !Number.isInteger(version)) throw new Error(`${bin} --schema-version printed ${JSON.stringify(out)}`);
+  if (out === "" || !Number.isInteger(version))
+    throw new Error(`${bin} --schema-version printed ${JSON.stringify(out)}`);
   schemaVersions.set(bin, version);
   return version;
 }

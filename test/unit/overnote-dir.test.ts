@@ -78,7 +78,11 @@ describe("overnoteDir dirty core warning", () => {
     expect(warnings[0]).toContain("OVERNOTE_DIR");
 
     warnings.length = 0;
-    overnoteDir({ root: dir, env: { ...env, OVERNOTE_REQUIRE_CLEAN: "1" }, warn: (line: string) => warnings.push(line) });
+    overnoteDir({
+      root: dir,
+      env: { ...env, OVERNOTE_REQUIRE_CLEAN: "1" },
+      warn: (line: string) => warnings.push(line),
+    });
     expect(warnings).toEqual([]);
   });
 
@@ -90,9 +94,9 @@ describe("overnoteDir dirty core warning", () => {
     write(path.join(dir, "packages/core/src/index.ts"), "export function other() {}\n// edited\n");
     const warnings: string[] = [];
 
-    expect(() => overnoteDir({ root: dir, env: { OVERNOTE_DIR: dir }, warn: (line: string) => warnings.push(line) })).toThrow(
-      /does not export duplicateContent/,
-    );
+    expect(() =>
+      overnoteDir({ root: dir, env: { OVERNOTE_DIR: dir }, warn: (line: string) => warnings.push(line) }),
+    ).toThrow(/does not export duplicateContent/);
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain("uncommitted changes");
   });
@@ -109,7 +113,10 @@ describe("exportsName", () => {
   it("does not treat a backtick inside a regex literal as a string, in either direction", () => {
     const dir = tempDir();
     // A real export after the regex still counts.
-    write(path.join(dir, "real.ts"), "const tick = /`/;\nexport function duplicateContent() {}\nconst again = /`[a-z]/g;\n");
+    write(
+      path.join(dir, "real.ts"),
+      "const tick = /`/;\nexport function duplicateContent() {}\nconst again = /`[a-z]/g;\n",
+    );
     expect(exportsName(path.join(dir, "real.ts"), "duplicateContent")).toBe(true);
     // A commented export between two such regexes is not swallowed into a fake string, so it stays a comment.
     write(path.join(dir, "fake.ts"), "const a = /`/;\n// export function duplicateContent() {}\nconst b = /`/;\n");
@@ -118,7 +125,10 @@ describe("exportsName", () => {
 
   it("still ignores exports that only appear in comments", () => {
     const dir = tempDir();
-    write(path.join(dir, "index.ts"), "// export function duplicateContent() {}\n/* export const duplicateContent = 1 */\n");
+    write(
+      path.join(dir, "index.ts"),
+      "// export function duplicateContent() {}\n/* export const duplicateContent = 1 */\n",
+    );
     expect(exportsName(path.join(dir, "index.ts"), "duplicateContent")).toBe(false);
   });
 });

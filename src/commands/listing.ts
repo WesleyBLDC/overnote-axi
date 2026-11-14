@@ -39,5 +39,7 @@ export function pagedListing(listing: Listing): CommandOutput {
   }
   const next = offset + page.items.length;
   const hints = [...(next < page.total ? [rebuildInvocation(spec, args, { offset: next })] : []), ...listing.rowHints];
-  return ok(joinBlocks([renderList(label, page.items, listing.columns, { total: page.total, noun }), renderHelp(hints)]));
+  return ok(
+    joinBlocks([renderList(label, page.items, listing.columns, { total: page.total, noun }), renderHelp(hints)]),
+  );
 }

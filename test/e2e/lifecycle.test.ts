@@ -11,7 +11,13 @@ import path from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { HELPER_MISSING, helperBinary, helperSchemaVersion, startTempHelper, type TempHelper } from "../fixtures/temp-helper.js";
+import {
+  HELPER_MISSING,
+  helperBinary,
+  helperSchemaVersion,
+  startTempHelper,
+  type TempHelper,
+} from "../fixtures/temp-helper.js";
 import { buildBinary, runBinary, type BuiltBinary, type RunOptions, type RunResult } from "./binary.js";
 
 const available = helperBinary() !== null;
@@ -77,7 +83,9 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     const read = await ok(["read", standup]);
     expect(read).toContain(`note:\n  id: ${standup}\n  title: Standup\n  state: live\n`);
     expect(read).toContain("markdown:\n  # Standup\n\n  - [ ] demo the CLI\n");
-    expect(await ok(["read", "title:groceries", "--format", "text"])).toContain("text:\n  Groceries\n\n  milk\n  eggs\n");
+    expect(await ok(["read", "title:groceries", "--format", "text"])).toContain(
+      "text:\n  Groceries\n\n  milk\n  eggs\n",
+    );
 
     const list = await ok(["list", "--fields", "id,title,pinned"]);
     expect(list).toBe(
@@ -87,9 +95,13 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     expect(await ok(["search", "nothing-like-this"])).toContain("hits: 0 notes match 'nothing-like-this'\n");
 
     const link = await ok(["link", groceries]);
-    expect(link).toContain(`link:\n  id: ${groceries}\n  markdown: "[Groceries](raycast://extensions/wesleybldc/overnote/toggle-notes?context=`);
+    expect(link).toContain(
+      `link:\n  id: ${groceries}\n  markdown: "[Groceries](raycast://extensions/wesleybldc/overnote/toggle-notes?context=`,
+    );
     expect(link.match(/raycast:/g)).toHaveLength(1);
-    expect(await ok(["link", groceries, "--into", standup])).toContain(`linked:\n  id: ${groceries}\n  into: ${standup}\n  title: Standup\n`);
+    expect(await ok(["link", groceries, "--into", standup])).toContain(
+      `linked:\n  id: ${groceries}\n  into: ${standup}\n  title: Standup\n`,
+    );
     expect(await ok(["link", groceries, "--into", standup])).toContain("(no-op; ");
     await fails(["link", standup, "--into", standup], 2, "VALIDATION_ERROR");
     expect(await ok(["links", groceries])).toContain(`backlinks[1]{id,title}:\n  ${standup},Standup\n`);
@@ -98,11 +110,17 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     expect(await ok(["update", standup, "--content", "- [ ] call Sam"])).toContain("  mode: append\n");
     expect(await ok(["update", standup, "--content", "- [ ] call Sam"])).toContain("(no-op; ");
     await fails(["update", standup, "--replace", "--content", "x"], 2, "VALIDATION_ERROR");
-    const stale = await fails(["update", standup, "--replace", "--content", "x", "--expected-updated-at", "1"], 1, "STALE_WRITE");
+    const stale = await fails(
+      ["update", standup, "--replace", "--content", "x", "--expected-updated-at", "1"],
+      1,
+      "STALE_WRITE",
+    );
     expect(stale).toMatch(/\nupdatedAt: \d+\n/);
 
     await fails(["edit", standup, "--old", "not there", "--new", "x"], 1, "TEXT_NOT_FOUND");
-    expect(await fails(["edit", standup, "--old", "[ ]", "--new", "[x]"], 1, "AMBIGUOUS_TEXT")).toContain("\nmatches: 2\n");
+    expect(await fails(["edit", standup, "--old", "[ ]", "--new", "[x]"], 1, "AMBIGUOUS_TEXT")).toContain(
+      "\nmatches: 2\n",
+    );
     expect(await ok(["edit", standup, "--old", "call Sam", "--new", "call Alex"])).toContain("  replaced: 1\n");
     expect(await ok(["edit", standup, "--old", "[ ]", "--new", "[x]", "--all"])).toContain("  replaced: 2\n");
     const markdown = await ok(["read", standup, "--full"]);
@@ -111,7 +129,15 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
 
     const meta = await ok(["read", standup, "--meta"]);
     const updatedAt = /\n {2}updatedAt: (\d+)\n/.exec(meta)![1]!;
-    const replaced = await ok(["update", standup, "--replace", "--content", "# Standup\n\nfresh start", "--expected-updated-at", updatedAt]);
+    const replaced = await ok([
+      "update",
+      standup,
+      "--replace",
+      "--content",
+      "# Standup\n\nfresh start",
+      "--expected-updated-at",
+      updatedAt,
+    ]);
     expect(replaced).toContain("  mode: replace\n");
     expect(await ok(["read", standup])).toContain("markdown:\n  # Standup\n\n  fresh start\n");
   });
@@ -129,7 +155,9 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     expect(await ok(["move", b, "up"])).toContain("Beta (position 2 of 3)");
     expect(await ok(["move", b, "up", "--steps", "5"])).toContain("reached the top");
     expect(await ok(["move", a, "down"])).toContain("(no-op; already at the bottom as position 3 of 3)");
-    expect(await ok(["move", a, "up", "--steps", "9"])).toContain("Alpha (position 1 of 3; reached the top after 2 of 9 steps)");
+    expect(await ok(["move", a, "up", "--steps", "9"])).toContain(
+      "Alpha (position 1 of 3; reached the top after 2 of 9 steps)",
+    );
     expect(await ok(["move", a, "down", "--steps", "9"])).toContain("reached the bottom after 2 of 9 steps");
     await fails(["move", a, "sideways"], 2, "VALIDATION_ERROR");
     expect(await ok(["unpin", b])).toBe(`unpinned: ${b} Beta\n`);
@@ -161,7 +189,9 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     await fails(["delete", doomed.slice(0, 12), "--permanent"], 2, "VALIDATION_ERROR");
     await fails(["delete", "current", "--permanent"], 2, "VALIDATION_ERROR");
     expect(await ok(["delete", doomed, "--permanent"])).toBe(`deleted: ${doomed} Doomed (erased permanently)\n`);
-    expect(await ok(["delete", doomed, "--permanent"])).toBe(`deleted: ${doomed} (no-op; no note with this id exists)\n`);
+    expect(await ok(["delete", doomed, "--permanent"])).toBe(
+      `deleted: ${doomed} (no-op; no note with this id exists)\n`,
+    );
     await fails(["read", doomed], 1, "NOTE_NOT_FOUND");
 
     await ok(["delete", kept]);
@@ -169,9 +199,13 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
     expect(trash).toContain(`count: 1 of 1 note in Recently Deleted\ntrash[1]{id,title,deleted}:\n  ${kept},Kept,`);
     expect(trash).not.toContain("--permanent");
     await fails(["trash", "--empty"], 2, "VALIDATION_ERROR");
-    expect(await fails(["trash", "--empty", "--permanent", "--expected-count", "4"], 1, "STALE_WRITE")).toContain("\ncount: 1\n");
+    expect(await fails(["trash", "--empty", "--permanent", "--expected-count", "4"], 1, "STALE_WRITE")).toContain(
+      "\ncount: 1\n",
+    );
     expect(await ok(["trash", "--empty", "--permanent", "--expected-count", "1"])).toBe("emptied: 1 note erased\n");
-    expect(await ok(["trash", "--empty", "--permanent"])).toBe("emptied: 0 notes erased (no-op; Recently Deleted is empty)\n");
+    expect(await ok(["trash", "--empty", "--permanent"])).toBe(
+      "emptied: 0 notes erased (no-op; Recently Deleted is empty)\n",
+    );
     expect(await ok(["trash"])).toBe("trash: 0 notes in Recently Deleted\n");
   });
 

@@ -27,9 +27,7 @@ type Target = "hooks" | "skill";
 
 export const command: CommandSpec = {
   name: "setup",
-  positionals: [
-    { name: "<target>", description: "What to install", required: false, choices: ["hooks", "skill"] },
-  ],
+  positionals: [{ name: "<target>", description: "What to install", required: false, choices: ["hooks", "skill"] }],
   flags: [
     { name: "uninstall", type: "boolean", description: "Remove instead of install" },
     {
@@ -50,7 +48,9 @@ export const command: CommandSpec = {
     const target = (args.positionals[0] ?? "hooks") as Target;
     const uninstall = flagBoolean(args, "uninstall");
     const agents = flagList(args, "agent") as readonly AgentId[] | undefined;
-    return target === "skill" ? setupSkill(args, context, uninstall, agents) : setupHooks(args, context, uninstall, agents);
+    return target === "skill"
+      ? setupSkill(args, context, uninstall, agents)
+      : setupHooks(args, context, uninstall, agents);
   },
 };
 
@@ -86,10 +86,7 @@ function render(
   const failed = shown.some((row) => row.change === "error");
   const skipped = shown.some((row) => row.change === "skipped");
   const columns = failed ? ERROR_COLUMNS : skipped ? REASON_COLUMNS : RESULT_COLUMNS;
-  const output = joinBlocks([
-    renderDetail({ setup: { target }, results: rows(shown, columns) }),
-    renderHelp(hints),
-  ]);
+  const output = joinBlocks([renderDetail({ setup: { target }, results: rows(shown, columns) }), renderHelp(hints)]);
   return failed ? { output, exitCode: EXIT_ERROR } : { output };
 }
 
@@ -151,7 +148,9 @@ async function setupSkill(
   } catch (error) {
     if (error instanceof AxiError && error.code === "VALIDATION_ERROR") throw error;
     const failure =
-      error instanceof AxiError ? error : axiError("could not read or write the skill file; check its permissions", "IO_ERROR");
+      error instanceof AxiError
+        ? error
+        : axiError("could not read or write the skill file; check its permissions", "IO_ERROR");
     result = {
       agent: "claude",
       file: skillFile(context.home),
