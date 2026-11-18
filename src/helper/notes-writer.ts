@@ -212,6 +212,9 @@ export class HelperNotesWriter implements NotesWriter {
     }
   }
 
+  async show(id?: NoteId): Promise<void> {
+    await this.call("window.show", id === undefined ? {} : { noteId: id });
+  }
   ping(): Promise<{ version: string; pid: number }> {
     return this.call("system.ping", {});
   }

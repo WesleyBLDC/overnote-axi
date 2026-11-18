@@ -399,6 +399,11 @@ export class FakeWriter implements NotesWriter {
     [note.pinned, neighbor.pinned] = [neighbor.pinned, note.pinned];
   }
 
+  async show(id?: NoteId): Promise<void> {
+    this.enter("show", id);
+    if (id !== undefined) this.find(id);
+  }
+
   async setCurrentNote(id: NoteId): Promise<void> {
     this.enter("setCurrentNote", id);
     this.store.currentNoteId = id;
@@ -429,7 +434,7 @@ export function createFakes(): Fakes {
 export interface FakeContext {
   context: Context;
   fakes: Fakes;
-  /** URLs passed to openUrl, in order (nothing is ever really opened). */
+  /** URLs passed to openUrl and apps passed to openApp, in order (nothing is ever really opened). */
   opened: string[];
   /** Milliseconds passed to sleep, in order (sleep resolves at once). */
   slept: number[];
@@ -466,6 +471,12 @@ export function fakeContext(overrides: ContextOverrides = {}, fakes: Fakes = cre
     readStdin: async () => null,
     openUrl: async (url) => {
       opened.push(url);
+    },
+    // No Overnote.app unless a test passes one; starting it brings the fake helper up.
+    findApp: () => null,
+    openApp: async (appPath) => {
+      opened.push(appPath);
+      fakes.store.helperRunning = true;
     },
     sleep: async (ms) => {
       slept.push(ms);

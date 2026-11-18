@@ -190,6 +190,8 @@ describe("helper socket client", () => {
     await writer.movePinned("A", "up");
     await writer.movePinned("A", "down");
     await writer.status();
+    await writer.show();
+    await writer.show("A");
     writer.close();
     expect(received.slice(1)).toEqual([
       { method: "notes.create", params: content },
@@ -206,6 +208,8 @@ describe("helper socket client", () => {
       { method: "notes.movePinnedUp", params: { id: "A" } },
       { method: "notes.movePinnedDown", params: { id: "A" } },
       { method: "system.status", params: {} },
+      { method: "window.show", params: {} },
+      { method: "window.show", params: { noteId: "A" } },
     ]);
   });
 

@@ -86,7 +86,12 @@ describe.skipIf(!available)(available ? title : `${title} (skipped: ${HELPER_MIS
   it("probes and pings a running helper", async () => {
     const probe = await probeHelper(helper.socket, helper.runtimeDir, uid, PROBE_TIMEOUT_MS);
     expect(probe).toEqual({ state: "running", version: expect.any(String), pid: helper.pid });
-    expect(await writer.ping()).toEqual({ version: probe.state === "running" ? probe.version : "", pid: helper.pid });
+    // From protocol v3.4 the ping also names the host: the test helper runs as the extension's.
+    expect(await writer.ping()).toEqual({
+      version: probe.state === "running" ? probe.version : "",
+      pid: helper.pid,
+      host: "extension",
+    });
     const status = await writer.status();
     expect(status).toMatchObject({
       pid: helper.pid,

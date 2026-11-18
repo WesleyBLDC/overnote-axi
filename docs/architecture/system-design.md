@@ -12,8 +12,9 @@ The agent CLI described here lives in the sibling repository [WesleyBLDC/overnot
 
 ## 1. The shape of the system
 
-Overnote is a floating Markdown notepad that a person opens from Raycast with one hotkey.
-It ships as a Raycast extension, but the panel, the editor, and the data all live in a separate native process, `OvernoteHelper`.
+Overnote is a floating Markdown notepad for macOS that a person opens with one hotkey.
+It runs as `Overnote.app`, a menu bar app with its own hotkey, and optionally as a Raycast extension.
+In both, the panel, the editor, and the data live in one native process, `OvernoteHelper`: the app is that binary in app mode, and the extension starts it on demand.
 
 | Part | Where | Runtime | Lifetime |
 |---|---|---|---|
@@ -21,6 +22,7 @@ It ships as a Raycast extension, but the panel, the editor, and the data all liv
 | OvernoteHelper | `helper/Sources/OvernoteHelper` and `helper/Sources/OvernoteCore` | Swift, AppKit, WebKit | Long lived, one per user |
 | Editor | `editor/src`, built to `assets/editor/` | React and Tiptap in a `WKWebView` | As long as the helper's panel |
 | `@overnote/core` | `packages/core/src` | TypeScript, browser and Node with no DOM | A library, bundled into the editor, the extension, and overnote-axi |
+| Overnote.app | `scripts/build-app.sh` wraps the helper binary, editor, and icons into `dist-app/Overnote.app` | Swift, AppKit, WebKit (the helper in app mode) | Long lived, starts at login if enabled |
 | Database | `<support dir>/notes.sqlite` | SQLite in WAL mode | Persistent |
 | overnote-axi | sibling repo `WesleyBLDC/overnote-axi` | Node 22.16 CLI | One short process per agent call |
 
@@ -35,6 +37,15 @@ The helper is a small accessory app (`NSApplication` with the `.accessory` activ
 The extension commands become thin clients: they make sure the right helper is running (`HelperLauncher` in `src/domain/launcher.ts`), send one or two socket requests, and exit.
 The panel is prewarmed hidden at startup (`PanelController.prewarm`), so a toggle only orders it in.
 
+### One helper, two hosts
+
+`Overnote.app` and the extension run the same helper and share one data folder, `~/Library/Application Support/Overnote`, so they always edit the same notes.
+Only one helper runs at a time, because the socket and the single writer allow one.
+App mode (bundle id `com.wesleybldc.overnote` or `--app`) adds a global hotkey (default ⌃⌥N), a menu bar item, and Launch at Login.
+`system.ping` reports `host: "app"` or `"extension"`: the extension reuses an app host and never stops it, while the app shuts down an extension helper and takes over.
+Every shutdown first flushes the editor's pending edits, so a handover never loses typing.
+Details are in "App mode and handover" in [`docs/architecture.md`](https://github.com/WesleyBLDC/overnote/blob/main/docs/architecture.md).
+
 ### Separation of responsibilities
 
 - **The helper stores, it never interprets content.**
@@ -46,7 +57,7 @@ The panel is prewarmed hidden at startup (`PanelController.prewarm`), so a toggl
 - **The editor owns interaction state.**
   `NoteSession` (`editor/src/session/session.ts`) owns which note is open, autosave, history, and merging outside changes; the helper keeps only what must persist (current note id, settings, panel frame).
 - **The panel geometry rules are pure.**
-  `PanelGeometry` and `PanelSizing` in `OvernoteCore` compute placements and minimum sizes with no AppKit, so they are unit tested; `PanelController` applies them.
+  `PanelGeometry` and `PanelSizing` in `OvernoteCore` compute placements and minimum sizes, and `PanelShowState` and `PanelHeightState` hold the show and height rules (when a show waits for the first height report, what completes it, and temporary growth), all with no AppKit, so they are unit tested; `PanelController` applies them.
 - **`OvernoteCore` has no AppKit.**
   The Swift package splits into `OvernoteCore` (repository, dispatcher, socket, backups, lifecycle) and `OvernoteHelper` (the AppKit and WebKit shell).
   `OvernoteCore` talks to the window only through the `HelperHost` protocol, which `PanelController` implements in the app and `RecordingHost` implements for `--headless` runs and tests.
@@ -60,7 +71,7 @@ The panel is prewarmed hidden at startup (`PanelController.prewarm`), so a toggl
    Anything that can reach the socket is the same user, so the socket has no authentication beyond file permissions.
 2. **Editor page to helper.**
    `WebBridge` accepts script messages only from the main frame of the `overnote://` scheme, which `EditorSchemeHandler` serves from `--editor-dir`.
-   Socket-only methods (`system.status`, backups, restore) are refused on the bridge, and bridge-only methods (`system.ready`, window sizing, clipboard, save panel, `app.openURL`) are refused on the socket.
+   Socket-only methods (`system.status`, backups, restore) are refused on the bridge, and bridge-only methods (`system.ready`, window sizing, the terminal drawer, clipboard, save panel, `app.openURL`) are refused on the socket.
    The production editor HTML carries a strict Content Security Policy with `connect-src 'none'` (`editor/vite.config.ts`), navigation away from `overnote://` is cancelled, and links open in the default browser through `NSWorkspace` after `LinkPolicy` checks the scheme.
 3. **Release download to installed binary.**
    The helper is ad-hoc signed, not notarized.
@@ -88,6 +99,7 @@ The panel is prewarmed hidden at startup (`PanelController.prewarm`), so a toggl
 1. Tiptap reports a document change and `App.tsx` calls `NoteSession.contentChanged`.
 2. After a 300 ms debounce (or on switch, hide, or blur) `saveContent` builds `NoteContent` with core's `buildNoteContent` and calls `notes.update` with `expectedUpdatedAt` set to the version it last synced.
 3. `BridgeClient` posts the request to `window.webkit.messageHandlers.overnote`; `WebBridge` queues it behind the previous message so saves land in order, and hands it to `RPCDispatcher` with source `.bridge`.
+   The terminal drawer's keystrokes and acks skip this queue: they go to their own `overnoteTerm` handler (`TerminalBridge`), which owns the drawer's pseudo terminal and sends its output back as `term.data` events.
 4. `NotesRepository.update` writes the content and folded copies in one transaction on the single writer connection, or returns `conflict` with the stored note when `expectedUpdatedAt` is stale.
 5. On `conflict` the session merges the stored note into its edits with `mergeDocs` and retries, up to 3 attempts.
 6. A write that came through the socket instead makes the dispatcher emit `notes.changed`, and the session reloads or merges that note in place.
@@ -106,7 +118,8 @@ The panel is prewarmed hidden at startup (`PanelController.prewarm`), so a toggl
 3. Writes go through `NotesWriter` (`src/helper/notes-writer.ts`) over the helper socket, after the trust check.
    Content writes first fetch the note with `notes.get`, compose the change on the stored document with the bundled `@overnote/core` (`src/markdown/convert.ts`), and send `notes.update` with `expectedUpdatedAt`.
 4. The helper emits `notes.changed`, so an open editor reloads or merges the change into unsaved typing.
-5. When the helper is not running, writes fail with `HELPER_NOT_RUNNING`, and `overnote-axi open` starts Overnote through its Raycast deeplink (`raycast://extensions/wesleybldc/overnote/open-notes`), which runs the extension, which launches the helper.
+5. When the helper is not running, writes fail with `HELPER_NOT_RUNNING`, and `overnote-axi open` starts Overnote: it launches `Overnote.app` when it is installed and shows the note with `window.show` once the helper answers, else it opens the extension's Raycast deeplink (`raycast://extensions/wesleybldc/overnote/open-notes`), which runs the extension, which launches the helper.
+   With a helper already running, `open` sends `window.show` on the socket, whichever host runs it.
 
 ## 4. Persistence
 
@@ -116,6 +129,7 @@ The panel is prewarmed hidden at startup (`PanelController.prewarm`), so a toggl
 - **Migrations.**
   `Migrations` tracks `PRAGMA user_version`, applies each step in one transaction, and refuses a database newer than the helper.
   Schema 2 added generated sort columns, paging indexes, and an FTS5 trigram index, and applies without the index where FTS5 is missing.
+  Schema 3 added the stored word count and one paging index per Search sort field, so every sort pages by index.
 - **Backups.**
   `BackupStore` writes consistent copies with SQLite's online backup API into `~/Library/Application Support/Overnote/backups` (outside the extension, so they survive an uninstall), and `BackupScheduler` writes a daily one.
   The other reasons are manual, pre-migration, pre-update, and pre-restore, and retention keeps the newest 10 plus one per week for 4 weeks.
@@ -128,7 +142,7 @@ Details are in sections 6 and 9 of [`docs/architecture.md`](https://github.com/W
 
 ## 5. Protocol versioning
 
-The protocol has a document version (v3.3 at the time of writing) at the top of [`docs/architecture.md`](https://github.com/WesleyBLDC/overnote/blob/main/docs/architecture.md), bumped in the same pull request as any change to a method, event, type, the schema, or the core API.
+The protocol has a document version (v3.5 at the time of writing) at the top of [`docs/architecture.md`](https://github.com/WesleyBLDC/overnote/blob/main/docs/architecture.md), bumped in the same pull request as any change to a method, event, type, the schema, or the core API.
 The version is not sent on the wire.
 Instead the helper reports its release version (`helper/VERSION`, compiled into `HelperVersion.current`) through `system.ping`, and the launcher restarts any helper whose version or binary checksum differs from the bundled one, so the extension, helper, and editor of one release always speak the same protocol.
 External clients such as overnote-axi read `system.ping` or `system.status` to learn which behavior they can expect, and overnote-axi checks database columns rather than an exact schema version.
@@ -140,6 +154,7 @@ External clients such as overnote-axi read `system.ping` or `system.status` to l
 - `npm run update-extension` (`scripts/update-extension.sh`) downloads and checks the new zip, refuses a rollback to an older schema, backs up with reason `pre-update`, stops the helper, replaces files with `rsync`, and reinstalls.
   The next Raycast command starts the new helper.
 - Check for Updates only copies the update command to the clipboard; it never runs it.
+- `npm run app:install` builds `Overnote.app`, ad hoc signed for this Mac, and copies it to `/Applications`; notarized distribution comes later.
 
 The steps are in [`docs/install.md`](https://github.com/WesleyBLDC/overnote/blob/main/docs/install.md) and section 9 of [`docs/architecture.md`](https://github.com/WesleyBLDC/overnote/blob/main/docs/architecture.md).
 
@@ -153,7 +168,7 @@ The steps are in [`docs/install.md`](https://github.com/WesleyBLDC/overnote/blob
 - **Window:** `scripts/e2e-window.sh` shows the real panel and is run by hand only.
 - **overnote-axi:** its own unit, integration (against a real headless helper when one is built in the sibling checkout), and built binary tests.
 
-`npm run verify` runs the full local gate; see the Testing policy in Overnote's [`CONTRIBUTING.md`](https://github.com/WesleyBLDC/overnote/blob/main/CONTRIBUTING.md).
+`npm run verify` runs the full local gate; see the Testing policy in `CONTRIBUTING.md`.
 
 ## 8. C4 model
 
@@ -175,14 +190,14 @@ flowchart TB
   github["GitHub Releases<br/>[External]<br/>Release zips and API"]
   axi["overnote-axi<br/>[Software system]<br/>Agent CLI"]
 
-  person -->|"hotkey, commands"| raycast
-  person -->|"types in panel"| overnote
+  person -->|"hotkey, menu bar, typing"| overnote
+  person -->|"commands"| raycast
   raycast -->|"runs extension"| overnote
   overnote -->|"panel, files, links"| macos
   overnote -->|"update check"| github
   agent -->|"runs"| axi
   axi -->|"reads, writes"| overnote
-  axi -->|"open deeplink"| raycast
+  axi -->|"fallback open deeplink"| raycast
 
   classDef person fill:#1F3A5F,stroke:#8AB4F8,color:#F2F2F5
   classDef system fill:#1E4D3A,stroke:#7ED6A8,color:#F2F2F5
@@ -192,8 +207,8 @@ flowchart TB
   class raycast,macos,github external
 ```
 
-The person works in Overnote's panel and reaches it through Raycast, which runs the extension that starts and drives the helper.
-Agents reach the same notes through overnote-axi, which reads the database and writes through the helper, and which uses a Raycast deeplink to start Overnote when it is closed.
+The person works in Overnote's panel and reaches it with `Overnote.app`'s hotkey and menu bar, or optionally through Raycast, which runs the extension that starts and drives the helper.
+Agents reach the same notes through overnote-axi, which reads the database and writes through the helper; to start Overnote when it is closed, it launches `Overnote.app`, or uses a Raycast deeplink when only the extension is installed.
 Overnote's only outbound call is the update check against GitHub releases.
 
 ### Level 2: Containers
@@ -511,5 +526,5 @@ For the note open in the panel it also waits past the autosave debounce and chec
 - [`docs/architecture.md`](https://github.com/WesleyBLDC/overnote/blob/main/docs/architecture.md): the protocol reference.
 - [`docs/install.md`](https://github.com/WesleyBLDC/overnote/blob/main/docs/install.md): install, update, backup, and uninstall.
 - [`docs/clean-room.md`](https://github.com/WesleyBLDC/overnote/blob/main/docs/clean-room.md): what contributors may and may not read.
-- Overnote's [`CONTRIBUTING.md`](https://github.com/WesleyBLDC/overnote/blob/main/CONTRIBUTING.md): layout, testing policy, and conventions.
-- [`docs/DESIGN.md`](../DESIGN.md): this CLI's own design.
+- `CONTRIBUTING.md` at the repository root: layout, testing policy, and conventions.
+- [WesleyBLDC/overnote-axi](https://github.com/WesleyBLDC/overnote-axi) `docs/DESIGN.md`: the agent CLI's own design.

@@ -1,7 +1,7 @@
 // Leaf module: no imports at all. bin/overnote-axi.ts reads it before the command graph loads,
 // so `--version` costs nothing beyond Node's own startup. Keep it in sync with package.json
 // (test/unit/version.test.ts checks).
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 
 /**
  * node:sqlite needs Node 22.16: 22.5 to 22.12 cannot import it without a flag and FTS5 is missing

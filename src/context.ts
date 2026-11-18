@@ -44,6 +44,10 @@ export interface Context {
   readStdin(): Promise<string | null>;
   /** Opens a URL with macOS `open` (no shell). */
   openUrl(url: string): Promise<void>;
+  /** The installed Overnote.app, or null (OVERNOTE_APP_PATH, else /Applications, else ~/Applications). */
+  findApp(): string | null;
+  /** Launches an app bundle with macOS `open` (no shell). */
+  openApp(appPath: string): Promise<void>;
   /** Closes the database and the socket. The CLI calls it after every command. */
   close(): void;
 }
@@ -63,6 +67,8 @@ export interface ContextOverrides {
   loadConverter?: () => Promise<MarkdownConverter>;
   readStdin?: () => Promise<string | null>;
   openUrl?: (url: string) => Promise<void>;
+  findApp?: () => string | null;
+  openApp?: (appPath: string) => Promise<void>;
 }
 
 export function createContext(overrides: ContextOverrides = {}): Context {
@@ -133,6 +139,8 @@ export function createContext(overrides: ContextOverrides = {}): Context {
     },
     readStdin: overrides.readStdin ?? (() => Promise.resolve(null)),
     openUrl: overrides.openUrl ?? (() => Promise.reject(axiError("internal: no URL opener configured", "UNKNOWN"))),
+    findApp: overrides.findApp ?? (() => null),
+    openApp: overrides.openApp ?? (() => Promise.reject(axiError("internal: no app opener configured", "UNKNOWN"))),
     close() {
       reader?.close();
       reader = undefined;

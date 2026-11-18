@@ -114,15 +114,15 @@ describe("read commands over SQLite", () => {
 
   it("keeps reading a newer schema that has every column, and says so in home and status", async () => {
     db.cleanup();
-    db = createNotesDb({ schema: 2, userVersion: 3 });
+    db = createNotesDb({ schema: 3, userVersion: 4 });
     const note = db.add({ body: "Still readable" });
     const home = await run("home");
     expect(home.code).toBe(0);
-    expect(home.out).toContain('  schema: "3, newer than this overnote-axi was tested with (overnote-axi status)"\n');
+    expect(home.out).toContain('  schema: "4, newer than this overnote-axi was tested with (overnote-axi status)"\n');
     expect(home.out).toContain(`current: ${note.id} Still readable (newest; none open)\n`);
     const status = await run("status");
     expect(status.code).toBe(0);
-    expect(status.out).toContain("  schema: 3\n  note: ");
+    expect(status.out).toContain("  schema: 4\n  note: ");
     const list = await run("list");
     expect(list.code).toBe(0);
     expect(list.out).toContain(note.id);

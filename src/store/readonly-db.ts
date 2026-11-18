@@ -44,7 +44,7 @@ import { collapseHome } from "../output/render.js";
  * The newest schema version this build was tested with (overnote docs/architecture.md section 6).
  * A newer one still opens when it keeps REQUIRED_COLUMNS; `status` and `home` then say to update.
  */
-export const TESTED_SCHEMA_VERSION = 2;
+export const TESTED_SCHEMA_VERSION = 3;
 
 /** Whether `schema` is newer than the newest one this build was tested with. */
 export function newerSchema(schema: number): boolean {

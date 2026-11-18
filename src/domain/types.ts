@@ -163,6 +163,8 @@ export interface NotesWriter {
   movePinned(id: NoteId, direction: PinDirection): Promise<void>;
   /** Persists the current note id (settings key `currentNoteId`), as the panel does on a switch. */
   setCurrentNote(id: NoteId): Promise<void>;
+  /** Shows Overnote's panel (`window.show`), on the note when one is given; works for Overnote.app and the extension. */
+  show(id?: NoteId): Promise<void>;
   close(): void;
 }
 

@@ -23,6 +23,7 @@ description: Take an overnote-axi change from a branch to a merged pull request 
 6. Publish the branch, then open the PR in a separate command: `gh-axi pr create -R WesleyBLDC/overnote-axi --title "Area: summary" --body-file <file>`.
    Doing both in one command, or passing a base flag, trips the lead guard.
    The guard also matches words in heredoc text, so write file contents with the editor tools rather than shell heredocs when they mention branch rules.
+   The clean-room guard blocks any command whose text names the Raycast extension's old support folder, even a doc example being replaced; make that edit with the Edit tool instead.
 7. Merge: `gh-axi pr merge <n> -R WesleyBLDC/overnote-axi --squash --delete-branch --subject "<PR title> (#<n>)" --body "<one paragraph summary>"`.
    Always pass `--subject` and `--body`: GitHub's generated squash message appends a `Co-authored-by` trailer, which the maintainer's rules forbid.
    "Base branch was modified" means another PR just merged; wait a few seconds and run it again.

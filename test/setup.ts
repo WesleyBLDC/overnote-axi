@@ -7,7 +7,8 @@
  * - HOME, XDG_CONFIG_HOME, CODEX_HOME: an empty temp home, so `setup` and `setup skill` can
  *   only write ~/.claude, ~/.codex and ~/.config/opencode inside it;
  * - OVERNOTE_AXI_OPEN_CMD: /usr/bin/true, so a spawned CLI never runs the real /usr/bin/open
- *   (which would launch the real Overnote against the real database).
+ *   (which would launch the real Overnote against the real database);
+ * - OVERNOTE_APP_PATH: a nonexistent path, so a spawned CLI never finds the real Overnote.app.
  *
  * Spawned processes (test/e2e) inherit this environment. Tests that need data create their own
  * temp dirs (test/fixtures/) and pass them through assertIsolated(). The temp root is removed
@@ -32,6 +33,7 @@ process.env.HOME = home;
 process.env.XDG_CONFIG_HOME = path.join(home, ".config");
 process.env.CODEX_HOME = path.join(home, ".codex");
 process.env.OVERNOTE_AXI_OPEN_CMD = "/usr/bin/true";
+process.env.OVERNOTE_APP_PATH = path.join(nowhere, "Overnote.app");
 
 for (const name of [
   "OVERNOTE_SUPPORT_DIR",
@@ -40,6 +42,7 @@ for (const name of [
   "HOME",
   "XDG_CONFIG_HOME",
   "CODEX_HOME",
+  "OVERNOTE_APP_PATH",
 ]) {
   assertIsolated(process.env[name]!, name);
 }
