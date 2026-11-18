@@ -70,11 +70,11 @@ bin/overnote-axi.ts ── --version fast path, else dynamic import ──▶ sr
   The list holds every column a query selects, filters, or sorts on: all 13 `notes` columns of schema 1 (the summary columns, `title_fold` and `text_fold` for search, `TITLE_MATCH` and `findByTitle`, `markdown` for backlinks, `raw_content` and `caret_position` for `read`) and `settings.key` and `settings.value` for `currentNoteId`; a query that starts using a column adds it there.
   A missing column (or table) is `DATABASE_ERROR` whose `missing` field names each as `<table>.<column>`, and `user_version` 0 is refused as not an Overnote database yet, with the hint `overnote-axi status` only (opening Overnote cannot fix it); no query runs in either case, and no SQLite message reaches the output.
   An exact version allowlist turned Overnote's additive schema 2 into a read outage until the CLI was rebuilt; Overnote's own read-only fallback checks no version either.
-  `TESTED_SCHEMA_VERSION` (today 2) is the newest schema the tests cover: a newer one reads normally, and `status` and `home` say to update (sections 6.1 and 6.6).
+  `TESTED_SCHEMA_VERSION` (today 3, which Overnote 0.6.0 writes) is the newest schema the tests cover: a newer one reads normally, and `status` and `home` say to update (sections 6.1 and 6.6).
   The update hint is one pasteable line from `updateHint(binPath)`: when the running script's package root (two levels above its real path) is a git checkout, which a linked `npm install -g .` runs from, it is `git -C <root> pull --ff-only && npm --prefix <root> run build`, with the home directory collapsed to `~` outside the quotes (`~/"my checkout"`) so the line still expands.
   A copied install has no checkout this build can name, so its hint is one prose sentence (pull, build, `npm install -g .` in the checkout it was built from, see the README) with no `<` or `>` placeholder that a shell would read as a redirect.
-  Schema 2 is purely additive (generated sort columns, paging indexes, and the `notes_fts` table), and every query names its columns, so the same queries run on both; search keeps the folded `LIKE` scan and does not use the FTS index.
-- **Helper not running.** Writes fail with `HELPER_NOT_RUNNING` and the hint `overnote-axi open`, which starts Overnote through its Raycast deeplink.
+  Schemas 2 and 3 only add to schema 1 (2: generated sort columns, paging indexes, and the `notes_fts` table; 3: `word_count` and one paging index per sort field, replacing schema 2's two browse indexes), and every query names its columns and no index, so the same queries run on all three; search keeps the folded `LIKE` scan and does not use the FTS index.
+- **Helper not running.** Writes fail with `HELPER_NOT_RUNNING` and the hint `overnote-axi open`, which starts Overnote: Overnote.app when it is installed, else the Raycast extension (section 6.7).
   When the runtime dir or socket exists but fails the trust check of section 3.2, opening Overnote cannot help, so the code stays `HELPER_NOT_RUNNING` but the message says the socket was refused and the hint is `overnote-axi status`, which names the reason; `home` reports the same state as `refused` with the same hint.
   Reads keep working.
 
@@ -197,7 +197,7 @@ The session hook runs `home --limit 3 --pinned-limit 3`.
 bin: ~/.npm-global/bin/overnote-axi
 description: "Read, search, create, update, organize, and link Overnote notes with compact TOON output, no plugin and no server."
 overnote:
-  helper: running v0.5.0
+  helper: running v0.6.0
   notes: 42 live
   pinned: 3
   trash: 5
@@ -326,11 +326,11 @@ backlinks[1]{id,title}:
 ```
 helper:
   state: running
-  version: 0.5.0
+  version: 0.6.0
   pid: 4242
 database:
-  path: ~/Library/Application Support/com.raycast.macos/extensions/overnote/notes.sqlite
-  schema: 2
+  path: ~/Library/Application Support/Overnote/notes.sqlite
+  schema: 3
   notes: 42 live
   trash: 5
 socket: /tmp/overnote-501/helper.sock
@@ -348,11 +348,16 @@ backups:
 
 ### 6.7 `open [note]`
 
-Opens the Overnote panel on a note (`toggle-notes` deeplink with `{ id }`) or on the last note (`open-notes` deeplink) by running `/usr/bin/open <url>` without a shell.
-This also starts the helper, which is why write errors point here.
+Shows the Overnote panel on a note or on the last note, in the first way that works:
+
+1. A running helper (Overnote.app or the extension's): `window.show` on the socket, with `{ noteId }` for a note.
+2. An installed Overnote.app (`OVERNOTE_APP_PATH`, else `/Applications/Overnote.app`, else `~/Applications/Overnote.app`): `/usr/bin/open <app>` without a shell, a wait of up to 5 s for its helper to answer, then the same `window.show`; a helper that never answers is `HELPER_NOT_RUNNING`.
+3. Otherwise the Raycast extension's deeplink, `toggle-notes` with `{ id }` for a note or `open-notes` for the last one, through `/usr/bin/open <url>`; a failed opener says to install Overnote.app or enable the extension.
+
+The last two also start the helper, which is why write errors point here.
 Output: `opened: 01JAB3K9QW Standup` or `opened: Overnote`.
 A note in Recently Deleted is refused with `NOTE_TRASHED` (recover it first); without a note, no database is needed.
-`OVERNOTE_AXI_OPEN_CMD`, honored only when set, replaces `/usr/bin/open` with another absolute path; the test suite sets it so no test can launch the real Overnote (section 11).
+`OVERNOTE_AXI_OPEN_CMD`, honored only when set, replaces `/usr/bin/open` with another absolute path; the test suite sets it, and points `OVERNOTE_APP_PATH` nowhere, so no test can launch the real Overnote (section 11).
 
 ### 6.8 `create`
 
@@ -624,7 +629,7 @@ Measured on the built `dist/` with Node 22 or later, relative to the `node -e 0`
 
 - **Never real notes, never real agent config.** Before any test runs, `test/setup.ts` points `OVERNOTE_SUPPORT_DIR`, `OVERNOTE_RUNTIME_DIR`, and `OVERNOTE_BACKUP_DIR` at nonexistent temp paths, and `HOME`, `XDG_CONFIG_HOME`, and `CODEX_HOME` at an empty temp home, then asserts that none of them lies under the real home (`os.userInfo().homedir`) or `/tmp/overnote-<uid>`; it removes that temp root after each test file, so a run leaves nothing in `$TMPDIR`.
   Fixtures pass every path they hand to the CLI through the same `assertIsolated()` (`test/fixtures/guard.ts`).
-- **Never the real app.** `test/setup.ts` sets `OVERNOTE_AXI_OPEN_CMD=/usr/bin/true`, so no test, and no CLI process a test spawns, runs `/usr/bin/open` with a `raycast://` URL, which would launch the real Overnote helper against the real database.
+- **Never the real app.** `test/setup.ts` sets `OVERNOTE_AXI_OPEN_CMD=/usr/bin/true` and points `OVERNOTE_APP_PATH` at a nonexistent path, so no test, and no CLI process a test spawns, runs `/usr/bin/open` on a `raycast://` URL or on Overnote.app, either of which would launch the real Overnote helper against the real database.
 - **Shared fakes.** `test/fixtures/fakes.ts` provides `FakeReader`, `FakeWriter`, and `fakeContext()` over one in-memory store, faithful to architecture §5 including conflicts, 404 and 409 errors, and an `afterUpdate` hook that simulates the open editor saving over a write.
 - **Unit** (`test/unit/`): TOON encoder against spec cases, argument parsing, rendering, the registry contract (every command loads a documented spec), note reference parsing, markdown composition, deeplink parsing, hook JSON merging on a temp `HOME`, skill generation.
   Unit tests keep one test per real rule (safety checks, compose and edit loss checks, path resolution, trust checks, the output contract); behaviour a command, integration, or built binary test already covers is not repeated here.

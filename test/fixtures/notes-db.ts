@@ -66,11 +66,30 @@ CREATE TRIGGER notes_fts_after_delete AFTER DELETE ON notes BEGIN
 END;
 `;
 
+/** Overnote's schema 3 migration (helper Migrations.swift): the stored word count and one paging index per sort. */
+const SCHEMA_V3 = `
+ALTER TABLE notes ADD COLUMN word_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE notes ADD COLUMN sort_created_neg INTEGER GENERATED ALWAYS AS (-created_at) VIRTUAL;
+ALTER TABLE notes ADD COLUMN sort_words_neg INTEGER GENERATED ALWAYS AS (-word_count) VIRTUAL;
+ALTER TABLE notes ADD COLUMN sort_title TEXT GENERATED ALWAYS AS (
+  CASE WHEN title_fold = '' THEN 'untitled' ELSE substr(title_fold, 1, 100) END) VIRTUAL;
+DROP INDEX notes_browse_order;
+DROP INDEX notes_browse_page;
+CREATE INDEX notes_opened_page   ON notes (deleted_at, sort_accessed_neg, id);
+CREATE INDEX notes_modified_page ON notes (deleted_at, sort_updated_neg, id);
+CREATE INDEX notes_created_page  ON notes (deleted_at, sort_created_neg, id);
+CREATE INDEX notes_title_page    ON notes (deleted_at, sort_title, id);
+CREATE INDEX notes_length_page   ON notes (deleted_at, sort_words_neg, id);
+`;
+
 export const EMPTY_DOC = JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] });
 
 export interface NotesDbOptions {
-  /** The schema to build, 1 or 2 (version 2 adds the sort columns, paging indexes and FTS); default 1. */
-  schema?: 1 | 2;
+  /**
+   * The schema to build: 1, 2 (adds the sort columns, paging indexes and FTS), or 3 (adds the word
+   * count and one paging index per sort, as Overnote 0.6.0 writes); default 1.
+   */
+  schema?: 1 | 2 | 3;
   /** `PRAGMA user_version`; default is `schema`. Set it higher to build a newer schema, or 0 for the refused case. */
   userVersion?: number;
   /** Leave the schema out (an empty SQLite file that is not an Overnote database). */
@@ -99,7 +118,8 @@ export class NotesDbFixture {
     const schema = options.schema ?? 1;
     if (!options.noSchema) {
       this.db.exec(SCHEMA_V1);
-      if (schema === 2) this.db.exec(SCHEMA_V2);
+      if (schema >= 2) this.db.exec(SCHEMA_V2);
+      if (schema >= 3) this.db.exec(SCHEMA_V3);
     }
     this.db.exec(`PRAGMA user_version = ${Math.trunc(options.userVersion ?? schema)}`);
   }

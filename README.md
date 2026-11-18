@@ -1,6 +1,7 @@
 # overnote-axi
 
 A command line tool that lets coding agents read, search, create, update, organize, and link your [Overnote](https://github.com/WesleyBLDC/overnote) notes.
+Overnote is a floating Markdown notepad for macOS: `Overnote.app`, or optionally its Raycast extension; this CLI works with either.
 
 It follows the [AXI](https://github.com/kunchenguid/axi) standard: compact [TOON](https://toonformat.dev) output, definitive empty states, structured errors with stable exit codes, and next-step hints.
 There is no server, no plugin, and no runtime dependency.
@@ -61,7 +62,7 @@ Both paths give an agent the same knowledge; you need only one.
 | `delete` | Move a note to Recently Deleted (`--permanent` erases it) |
 | `recover` | Restore a note from Recently Deleted |
 | `trash` | List Recently Deleted, or empty it with `--empty --permanent` |
-| `open` | Show a note (or the last one) in the Overnote panel |
+| `open` | Show a note (or the last one) in the Overnote panel, starting Overnote.app (or else the Raycast extension) when it is closed |
 | `setup` | Install or remove the session hook (default) or the agent skill |
 
 Every command takes `--help` (or `overnote-axi help <command>`), and flags go after the command.

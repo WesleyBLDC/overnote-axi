@@ -91,14 +91,27 @@ describe("openReader", () => {
     reader.close();
   });
 
-  it("opens and lists a newer schema that keeps every required column", () => {
-    expect(TESTED_SCHEMA_VERSION).toBe(2);
-    fixture = createNotesDb({ schema: 2, userVersion: 3 });
-    const note = fixture.add({ body: "Newer schema" });
+  it("reads a real schema 3 database, as Overnote 0.6.0 writes it (its paging indexes replace schema 2's)", () => {
+    expect(TESTED_SCHEMA_VERSION).toBe(3);
+    fixture = createNotesDb({ schema: 3 });
+    const note = fixture.add({ body: "Schema three" });
     fixture.setCurrent(note.id);
     fixture.close();
     const reader = openReader(fixture.database)!;
     expect(reader.schemaVersion()).toBe(3);
+    expect(reader.list({ limit: 10 }).items.map((item) => item.id)).toEqual([note.id]);
+    expect(reader.search("three", { limit: 10 }).total).toBe(1);
+    expect(reader.currentNoteId()).toBe(note.id);
+    reader.close();
+  });
+
+  it("opens and lists a newer schema that keeps every required column", () => {
+    fixture = createNotesDb({ schema: 3, userVersion: 4 });
+    const note = fixture.add({ body: "Newer schema" });
+    fixture.setCurrent(note.id);
+    fixture.close();
+    const reader = openReader(fixture.database)!;
+    expect(reader.schemaVersion()).toBe(4);
     expect(reader.list({ limit: 10 }).items.map((item) => item.id)).toEqual([note.id]);
     expect(reader.search("newer", { limit: 10 }).total).toBe(1);
     expect(reader.currentNoteId()).toBe(note.id);
@@ -106,13 +119,13 @@ describe("openReader", () => {
   });
 
   it("refuses a newer schema without a required column, naming it, with the update hint", () => {
-    fixture = createNotesDb({ userVersion: 3 });
+    fixture = createNotesDb({ userVersion: 4 });
     fixture.exec("ALTER TABLE notes DROP COLUMN text_fold");
     fixture.close();
     const error = openError(fixture.database, "/nonexistent/overnote-axi/dist/overnote-axi.js");
     expect(error.code).toBe("DATABASE_ERROR");
-    expect(error.message).toBe("the notes database (schema 3) lacks columns this overnote-axi reads");
-    expect(error.details).toEqual({ schema: 3, missing: "notes.text_fold" });
+    expect(error.message).toBe("the notes database (schema 4) lacks columns this overnote-axi reads");
+    expect(error.details).toEqual({ schema: 4, missing: "notes.text_fold" });
     expect(error.suggestions).toEqual(["overnote-axi status", COPIED_HINT]);
   });
 
