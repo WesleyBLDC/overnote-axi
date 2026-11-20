@@ -112,7 +112,7 @@ describe("buildSkill", () => {
     expect(skill).toMatch(/`update --prepend` also lands below the title/);
     expect(skill).toMatch(/dated section/);
     expect(skill).toMatch(/No tables or images/);
-    expect(skill).toContain("https://github.com/WesleyBLDC/overnote#writing-clean-notes");
+    expect(skill).toContain("https://github.com/WesleyBLDC/overnote/blob/main/docs/writing-notes.md");
     expect(skill).not.toMatch(/Slack|chat app/);
     expect(skill).not.toMatch(/dashes as punctuation/);
   });

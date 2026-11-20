@@ -45,11 +45,11 @@ export const SAFETY: readonly string[] = [
   "Never read or write Overnote's database or files directly, and never drive Overnote's window; this CLI is the only interface",
 ];
 
-/** Overnote README's section with the same rules, written for people. */
-export const FORMATTING_DOCS = "https://github.com/WesleyBLDC/overnote#writing-clean-notes";
+/** Overnote's writing guide with the same rules, written for people. */
+export const FORMATTING_DOCS = "https://github.com/WesleyBLDC/overnote/blob/main/docs/writing-notes.md";
 
 /**
- * Formatting rules for a clean note; the same rules as Overnote's README section
+ * Formatting rules for a clean note; the same rules as Overnote's writing guide
  * (`FORMATTING_DOCS`), in agent facing wording. They apply to notes the agent creates and
  * maintains: in a note the person wrote, the skill says to follow its existing layout instead.
  */
