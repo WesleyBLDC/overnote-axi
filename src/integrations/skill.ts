@@ -108,6 +108,8 @@ const MARKDOWN_SUBSET: readonly string[] = [
   "Paragraphs; a single newline inside a paragraph is a line break.",
   "Inline `**bold**`, `*italic*`, `~~strike~~`, `++underline++`, `` `code` `` and `[label](https://example.com)` links; bare `https://` URLs become links.",
   "Bullet lists `- item`, numbered lists `1. item`, and task lists `- [ ] open` and `- [x] done`; nest an item by indenting it to its parent's text (2 spaces under `-`, 3 under `1.`).",
+  "A line written straight under a list item, with no blank line between, joins that item as a line break; put a blank line before text that should stand on its own.",
+  "Only a number, a dot and a space (`1. `) starts a numbered item, so labels such as `1.1 Backend` stay plain text; for numbered groups with details, use a `##` heading per group and bullets under it.",
   "Block quotes `> text`, fenced code blocks with a language, and a horizontal rule `---` on its own line.",
   "Not rendered: tables stay literal `|` text, images keep only their alt text, and HTML other than inline tags such as `<b>` or `<br>` is dropped (its text stays).",
   "Toggle lists exist only in the editor and read back as bullets; an edit touching a collapsed one fails with `LOSSY_REWRITE`.",
