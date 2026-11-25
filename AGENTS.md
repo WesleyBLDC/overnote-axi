@@ -39,4 +39,3 @@ Turn every mistake or better way into a durable fix, so the next agent does not 
 - Prefer automating the lesson (a script, a test, a lint rule) over writing it down.
 - Repo skill: `.claude/skills/ship-change` (branch to merged pull request with docs); update it when its steps go stale.
 
-A lead session reads `lead.toml` and the rules it names; workers can ignore it.
